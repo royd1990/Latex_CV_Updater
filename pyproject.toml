@@ -1,0 +1,22 @@
+[project]
+name = "cv-updater"
+version = "0.1.0"
+description = "Interactive CLI agent for creating and updating LaTeX CVs using the curve document class"
+requires-python = ">=3.9"
+dependencies = [
+    "jinja2>=3.0",
+    "questionary>=2.0",
+]
+
+[project.scripts]
+cv-updater = "cv_updater.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cv_updater"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"cv_updater/templates" = "cv_updater/templates"

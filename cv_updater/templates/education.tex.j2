@@ -1,0 +1,13 @@
+\begin{rubric}{Education}
+<% for entry in entries -%>
+\entry*[<< entry.date_range >>]%
+	\textbf{<< entry.degree >>, << entry.institution >>,}<% if entry.specialization %> Spl. in << entry.specialization >><% endif %>
+
+<% if entry.thesis_title -%>
+	\par Thesis title: \emph{<< entry.thesis_title >>}
+<% endif -%>
+<% if not loop.last -%>
+%
+<% endif -%>
+<% endfor -%>
+\end{rubric}

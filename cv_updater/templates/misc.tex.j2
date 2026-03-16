@@ -1,0 +1,11 @@
+\begin{rubric}{Miscellaneous Experience}
+<% set current_sub = namespace(value='') -%>
+<% for entry in entries -%>
+<% if entry.subrubric != current_sub.value -%>
+<% set current_sub.value = entry.subrubric -%>
+\subrubric{<< entry.subrubric >>}
+<% endif -%>
+\entry*[<< entry.year >>] \textbf{<< entry.title >>}<% if entry.description %>, << entry.description >>.<% endif %>
+
+<% endfor %>
+\end{rubric}

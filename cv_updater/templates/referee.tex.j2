@@ -1,0 +1,28 @@
+<% if mode == "short" -%>
+%!TEX encoding = UTF8
+%!TEX root =cv-llt.tex
+
+\prefix{}
+\begin{rubric}{References}
+
+{\large Available on Request\par}
+\end{rubric}
+<% else -%>
+%% Full referee listing
+
+\makerubrichead{References}
+
+\begin{tabularx}{\textwidth}{@{}X X@{}}
+<% for referee in referees -%>
+\textbf{<< referee.name >>}\par
+<< referee.title >>\par
+<< referee.institution >>,\par
+<% if referee.address -%><< referee.address >>.\par
+<% endif -%>
+\makefield{\faEnvelopeO}{\url{<< referee.email >>}}
+<% if not loop.last %>&
+<% else %>\\
+<% endif -%>
+<% endfor -%>
+\end{tabularx}
+<% endif -%>

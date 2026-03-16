@@ -1,0 +1,7 @@
+\begin{rubric}{Employment}
+<% for entry in entries -%>
+\entry*[<< entry.date_range >>]%
+	\textbf{<< entry.title >>,} << entry.organization >><% if entry.location %>, << entry.location >><% endif %>
+%
+<% endfor -%>
+\end{rubric}
