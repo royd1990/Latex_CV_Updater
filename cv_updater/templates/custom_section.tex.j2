@@ -1,0 +1,13 @@
+\begin{rubric}{<< section_title >>}
+<% set current_sub = namespace(value='') -%>
+<% for entry in entries -%>
+<% if entry.subrubric != current_sub.value -%>
+<% set current_sub.value = entry.subrubric -%>
+<% if entry.subrubric %>
+\subrubric{<< entry.subrubric >>}
+<% endif -%>
+<% endif -%>
+\entry*[<< entry.label >>] << entry.content >>
+
+<% endfor %>
+\end{rubric}

@@ -4,16 +4,19 @@
 
 \PassOptionsToPackage{style=ieee,sorting=ydnt,uniquename=init,defernumbers=true}{biblatex}
 
+% Pre-declare no-math option for fontspec to prevent option clash with cochineal
+\PassOptionsToPackage{no-math}{fontspec}
+
 \usepackage{settings}
 
 \DefineBibliographyStrings{english}{url={\textsc{url}}}
 
 \addbibresource{own-bib.bib}
 
-\mynames{Lim/Lian\bibnamedelima Tze}
+<% if mynames %>\mynames{<< mynames >>}
+<% endif %>
 
 \ifxetexorluatex
-  \usepackage{fontspec}
   \usepackage[p,osf,swashQ]{cochineal}
   \usepackage[medium,bold]{cabin}
   \usepackage[varqu,varl,scale=0.9]{zi4}
@@ -53,12 +56,14 @@
 \begin{document}
 \makeheaders[c]
 
-\makerubric{employment}
-\makerubric{education}
-
-\makerubric{skills}
-\makerubric{misc}
-
-\makerubric{referee}
-
+<% if 'employment' not in skipped_sections %>\makerubric{employment}
+<% endif %><% if 'education' not in skipped_sections %>\makerubric{education}
+<% endif %>
+<% if 'skills' not in skipped_sections %>\makerubric{skills}
+<% endif %><% if 'misc' not in skipped_sections %>\makerubric{misc}
+<% endif %>
+<% if 'referee' not in skipped_sections %>\makerubric{referee}
+<% endif %>
+<% for section in custom_sections %>\makerubric{<< section.filename >>}
+<% endfor %>
 \end{document}

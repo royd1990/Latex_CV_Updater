@@ -66,6 +66,20 @@ class PersonalInfo:
 
 
 @dataclass
+class CustomEntry:
+    label: str  # Left-column label (year, date range, etc.)
+    content: str  # Main content (free-form, may contain LaTeX)
+    subrubric: str = ""  # Optional sub-section header
+
+
+@dataclass
+class CustomSection:
+    title: str  # Rubric title shown in CV (e.g. "Publications")
+    filename: str  # Output filename without .tex (e.g. "publications")
+    entries: list[CustomEntry] = field(default_factory=list)
+
+
+@dataclass
 class CVData:
     personal: PersonalInfo = field(default_factory=PersonalInfo)
     employment: list[EmploymentEntry] = field(default_factory=list)
@@ -74,3 +88,5 @@ class CVData:
     misc: list[MiscEntry] = field(default_factory=list)
     referees: list[RefereeEntry] = field(default_factory=list)
     referee_mode: str = "short"  # "short" = available on request, "full" = listed
+    skipped_sections: set = field(default_factory=set)  # section keys to omit entirely
+    custom_sections: list[CustomSection] = field(default_factory=list)
