@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ REFEREES ─────────────────────────────────────────┐</pre>
+
+<form method="post">
+
+  <!-- Hidden template row -->
+  <div class="entry-row template" id="referee-template">
+    <div class="entry-row-header">
+      <span class="entry-idx">#</span>
+      <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" name="referees[__IDX__][name]" placeholder="Prof. Jane Smith">
+      </div>
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" name="referees[__IDX__][title]" placeholder="Professor of CS">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Institution</label>
+      <input type="text" name="referees[__IDX__][institution]" placeholder="MIT">
+    </div>
+    <div class="form-group">
+      <label>Address <span class="text-muted">(optional)</span></label>
+      <input type="text" name="referees[__IDX__][address]" placeholder="77 Massachusetts Ave, Cambridge MA 02139">
+    </div>
+    <div class="form-group">
+      <label>Email <span class="text-muted">(optional)</span></label>
+      <input type="email" name="referees[__IDX__][email]" placeholder="jsmith@mit.edu">
+    </div>
+  </div>
+
+  <div class="panel" data-title="Referee Mode">
+    <div class="panel-body">
+      <label style="font-size:12px; text-transform:none; color:var(--fg); display:block; margin-bottom:8px;">
+        How should referees appear in the CV?
+      </label>
+      <div class="radio-group">
+        <label>
+          <input type="radio" id="mode_short" name="referee_mode" value="short"
+            {{ 'checked' if cv.referee_mode == 'short' and 'referee' not in cv.skipped_sections else '' }}>
+          Short — "Available on Request"
+        </label>
+        <label>
+          <input type="radio" id="mode_full" name="referee_mode" value="full"
+            {{ 'checked' if cv.referee_mode == 'full' and 'referee' not in cv.skipped_sections else '' }}>
+          Full — list referee details
+        </label>
+        <label>
+          <input type="radio" id="mode_skip" name="referee_mode" value="skip"
+            {{ 'checked' if 'referee' in cv.skipped_sections else '' }}>
+          <span style="color:var(--amber);">Skip — omit section entirely</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div id="referee-fields" style="display: {{ 'block' if cv.referee_mode == 'full' and 'referee' not in cv.skipped_sections else 'none' }};">
+    <div class="panel" data-title="Referee Entries">
+      <div class="panel-body">
+        <div id="referee-list" class="entry-list">
+          {% for entry in cv.referees %}
+          <div class="entry-row">
+            <div class="entry-row-header">
+              <span class="entry-idx">#{{ loop.index }}</span>
+              <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+            </div>
+            <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+              <div class="form-group">
+                <label>Name</label>
+                <input type="text" name="referees[{{ loop.index0 }}][name]"
+                       value="{{ entry.name }}" placeholder="Prof. Jane Smith">
+              </div>
+              <div class="form-group">
+                <label>Title</label>
+                <input type="text" name="referees[{{ loop.index0 }}][title]"
+                       value="{{ entry.title }}" placeholder="Professor of CS">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Institution</label>
+              <input type="text" name="referees[{{ loop.index0 }}][institution]"
+                     value="{{ entry.institution }}" placeholder="MIT">
+            </div>
+            <div class="form-group">
+              <label>Address <span class="text-muted">(optional)</span></label>
+              <input type="text" name="referees[{{ loop.index0 }}][address]"
+                     value="{{ entry.address }}">
+            </div>
+            <div class="form-group">
+              <label>Email <span class="text-muted">(optional)</span></label>
+              <input type="email" name="referees[{{ loop.index0 }}][email]"
+                     value="{{ entry.email }}">
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="add-row-btn">
+          <button type="button" class="btn btn-primary btn-sm" id="add-referee">+ Add Referee</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wizard-nav">
+    <button type="submit" name="action" value="prev" class="btn">← Misc</button>
+    <div class="nav-right">
+      <button type="submit" name="action" value="save" class="btn btn-amber">Save</button>
+      <button type="submit" name="action" value="next" class="btn btn-success">Custom →</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Configure how referees appear in your CV.</p>
+<p class="info-tip"><strong>Short mode</strong>: prints "Referees available on request" — common for most CVs.</p>
+<p class="info-tip"><strong>Full mode</strong>: lists all referee details in a two-column layout.</p>
+<p class="info-text" style="margin-top:8px;">Full mode is typically used only when explicitly requested by employers.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const em = new EntryManager('referee-list', 'referee-template', 'referees');
+  document.getElementById('add-referee').addEventListener('click', () => em.addRow());
+</script>
+{% endblock %}

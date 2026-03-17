@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ CUSTOM SECTIONS ──────────────────────────────────┐</pre>
+
+<div class="panel" data-title="Existing Sections">
+  <div class="panel-body">
+    {% if cv.custom_sections %}
+    <div class="entry-list">
+      {% for section in cv.custom_sections %}
+      <div class="custom-section-item">
+        <div>
+          <span class="custom-section-name">{{ section.title }}</span>
+          <span class="custom-section-filename">→ {{ section.filename }}.tex</span>
+          <span class="text-muted" style="font-size:10px; margin-left:8px;">
+            ({{ section.entries | length }} entries)
+          </span>
+        </div>
+        <div class="custom-section-actions">
+          <a href="{{ url_for('edit_custom_section', idx=loop.index0) }}"
+             class="btn btn-primary btn-sm">✎ Edit</a>
+          <form method="post" style="display:inline">
+            <input type="hidden" name="idx" value="{{ loop.index0 }}">
+            <button type="submit" name="action" value="delete"
+                    class="btn btn-danger btn-sm"
+                    onclick="return confirm('Delete section \'{{ section.title }}\'?')">
+              ✕ Delete
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted" style="font-size:12px; padding: 8px 0;">No custom sections yet. Add one below.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel" data-title="Add New Section">
+  <div class="panel-body">
+    <form method="post">
+      <div class="form-row" style="grid-template-columns: 2fr 1fr;">
+        <div class="form-group">
+          <label for="new_title">Section Title</label>
+          <input type="text" id="new_title" name="new_title"
+                 placeholder="Publications" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="new_filename">Filename <span class="text-muted">(no .tex)</span></label>
+          <input type="text" id="new_filename" name="new_filename"
+                 placeholder="publications" autocomplete="off">
+        </div>
+      </div>
+      <button type="submit" name="action" value="add" class="btn btn-success">+ Add Section</button>
+    </form>
+  </div>
+</div>
+
+<form method="post">
+  <div class="wizard-nav">
+    <button type="submit" name="action" value="prev" class="btn">← Referees</button>
+    <button type="submit" name="action" value="next" class="btn btn-success">Download →</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Add sections not covered by the standard template (e.g. Publications, Grants, Teaching).</p>
+<p class="info-tip">The <strong>Filename</strong> is used as the <code>.tex</code> filename and in <code>\makerubric{...}</code>.</p>
+<p class="info-text" style="margin-top:8px;">Example:</p>
+<div class="info-code">Title:    Publications
+Filename: publications
+→ publications.tex</div>
+<p class="info-text" style="margin-top:8px;">After adding, click <strong>Edit</strong> to add entries to the section.</p>
+{% endblock %}

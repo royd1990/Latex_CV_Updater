@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ PERSONAL INFORMATION ─────────────────────────────┐</pre>
+
+<form method="post">
+  <div class="panel" data-title="Identity">
+    <div class="panel-body">
+      <div class="form-group">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name"
+               value="{{ cv.personal.name }}"
+               placeholder="e.g. Jane Doe, Ph.D.">
+      </div>
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email"
+               value="{{ cv.personal.email }}"
+               placeholder="jane@example.com">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" data-title="Online Profiles">
+    <div class="panel-body">
+      <div class="form-row" style="grid-template-columns: 2fr 1fr;">
+        <div class="form-group">
+          <label for="linkedin">LinkedIn URL</label>
+          <input type="url" id="linkedin" name="linkedin"
+                 value="{{ cv.personal.linkedin }}"
+                 placeholder="https://www.linkedin.com/in/janedoe/">
+        </div>
+        <div class="form-group">
+          <label for="linkedin_label">LinkedIn Label</label>
+          <input type="text" id="linkedin_label" name="linkedin_label"
+                 value="{{ cv.personal.linkedin_label }}"
+                 placeholder="janedoe">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="github">Website / GitHub URL</label>
+        <input type="url" id="github" name="github"
+               value="{{ cv.personal.github }}"
+               placeholder="https://github.com/janedoe">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" data-title="Photo">
+    <div class="panel-body">
+      <div class="form-group">
+        <label for="photo">Photo Filename</label>
+        <input type="text" id="photo" name="photo"
+               value="{{ cv.personal.photo }}"
+               placeholder="photo.jpg">
+        <span class="text-muted" style="font-size:10px;">Relative path used in \photo[r]{...}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="wizard-nav">
+    <span></span>
+    <div class="nav-right">
+      <button type="submit" name="action" value="save" class="btn btn-amber">Save</button>
+      <button type="submit" name="action" value="next" class="btn btn-success">Employment →</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Personal info appears in the CV header.</p>
+<p class="info-tip">The <strong>LinkedIn Label</strong> is the display text shown in the CV (e.g. "jane-doe").</p>
+<p class="info-tip">The <strong>Photo</strong> field is the filename of your photo file — it must be in the CV directory when compiling.</p>
+{% endblock %}

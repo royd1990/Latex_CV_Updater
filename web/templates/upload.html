@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ UPLOAD CV FILES ──────────────────────────────────┐</pre>
+
+<form method="post" enctype="multipart/form-data">
+  <div class="panel" data-title="Main File">
+    <div class="panel-body">
+      <div class="upload-section">
+        <label>cv-llt.tex <span class="upload-optional">(main file — personal info)</span></label>
+        <input type="file" name="cv_main" accept=".tex">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" data-title="Section Files">
+    <div class="panel-body">
+      <div class="upload-section">
+        <label>employment.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="employment" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>education.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="education" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>skills.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="skills" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>misc.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="misc" accept=".tex">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" data-title="Referee Files">
+    <div class="panel-body">
+      <div class="upload-section">
+        <label>referee.tex <span class="upload-optional">(mode file — optional)</span></label>
+        <input type="file" name="referee" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>referee-full.tex <span class="upload-optional">(full list — optional)</span></label>
+        <input type="file" name="referee_full" accept=".tex">
+      </div>
+    </div>
+  </div>
+
+  <div class="wizard-nav">
+    <a href="{{ url_for('index') }}" class="btn">← Back</a>
+    <button type="submit" class="btn btn-success">Parse &amp; Continue →</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Upload your existing LaTeX CV files. Only the files you select will be parsed.</p>
+<p class="info-tip">At minimum, upload <strong>cv-llt.tex</strong> to preserve your personal info.</p>
+<p class="info-text" style="margin-top:8px;">Supported files:</p>
+<div class="info-code">cv-llt.tex</div>
+<div class="info-code">employment.tex</div>
+<div class="info-code">education.tex</div>
+<div class="info-code">skills.tex</div>
+<div class="info-code">misc.tex</div>
+<div class="info-code">referee.tex</div>
+<div class="info-code">referee-full.tex</div>
+<p class="info-text" style="margin-top:8px;">Support files (settings.sty, own-bib.bib, photo.jpg) will be copied automatically if present in the upload directory.</p>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="landing-box">
+
+<pre class="ascii-logo">
+ ██████╗██╗   ██╗    ███████╗██████╗ ██╗████████╗ ██████╗ ██████╗
+██╔════╝██║   ██║    ██╔════╝██╔══██╗██║╚══██╔══╝██╔═══██╗██╔══██╗
+██║     ██║   ██║    █████╗  ██║  ██║██║   ██║   ██║   ██║██████╔╝
+██║     ╚██╗ ██╔╝    ██╔══╝  ██║  ██║██║   ██║   ██║   ██║██╔══██╗
+╚██████╗ ╚████╔╝     ███████╗██████╔╝██║   ██║   ╚██████╔╝██║  ██║
+ ╚═════╝  ╚═══╝      ╚══════╝╚═════╝ ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝
+</pre>
+
+  {% if issues %}
+  <div class="panel" data-title="Prerequisites">
+    <div class="panel-body">
+      <ul class="issues-list">
+        {% for issue in issues %}
+        <li>⚠ {{ issue }}</li>
+        {% endfor %}
+      </ul>
+      <p class="text-muted" style="font-size:11px;">PDF compilation will not be available until these are resolved. ZIP download still works.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="panel" data-title="Get Started">
+    <div class="panel-body">
+      <p class="info-text" style="margin-bottom:16px;">Choose how you'd like to begin editing your CV.</p>
+      <div class="mode-cards">
+
+        <div class="mode-card">
+          <div class="mode-card-title">[ CREATE NEW ]</div>
+          <div class="mode-card-desc">Start from scratch with an empty CV template.</div>
+          <form method="post" action="{{ url_for('start_create') }}">
+            <button type="submit" class="btn btn-success full-width">▶ Create</button>
+          </form>
+        </div>
+
+        <div class="mode-card">
+          <div class="mode-card-title">[ UPDATE EXISTING ]</div>
+          <div class="mode-card-desc">Upload your existing .tex files to edit them.</div>
+          <a href="{{ url_for('start_upload') }}" class="btn btn-primary full-width" style="display:block;text-align:center;">▶ Upload</a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center; color:var(--muted); font-size:10px; margin-top:8px;">
+    LaTeX CV Editor — curve document class — v0.1.0
+  </div>
+
+</div>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Welcome to the LaTeX CV Editor.</p>
+<p class="info-tip">Your data is stored in a server-side session and never sent to third parties.</p>
+<p class="info-text" style="margin-top:8px;">
+  Required tools:
+</p>
+<div class="info-code">xelatex / lualatex</div>
+<div class="info-code">biber</div>
+<p class="info-text" style="margin-top:8px;">Install via MacTeX or BasicTeX.</p>
+{% endblock %}

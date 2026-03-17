@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CV Editor — {{ page_title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='tui.css') }}">
+</head>
+<body>
+<div class="app-wrapper">
+
+  <!-- ── Status bar ─────────────────────────────────────────── -->
+  <header class="status-bar">
+    <span class="status-left">[ CV EDITOR ]</span>
+    <span class="status-center">{{ page_title | upper }}</span>
+    <span class="status-right">{{ session.get('mode', '---') | upper }} MODE</span>
+  </header>
+
+  <!-- ── Flash messages ─────────────────────────────────────── -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-container">
+    {% for category, message in messages %}
+    <div class="flash {{ category }}">
+      <span>{{ message }}</span>
+      <button class="flash-close" aria-label="Close">×</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <!-- ── Sidebar nav ────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="nav-title">Navigation</div>
+    {% set step_labels = {
+      'personal':   'Personal',
+      'employment': 'Employment',
+      'education':  'Education',
+      'skills':     'Skills',
+      'misc':       'Misc',
+      'referee':    'Referees',
+      'custom':     'Custom',
+      'download':   'Download',
+    } %}
+    {% set step_urls = {
+      'personal':   url_for('edit_personal'),
+      'employment': url_for('edit_employment'),
+      'education':  url_for('edit_education'),
+      'skills':     url_for('edit_skills'),
+      'misc':       url_for('edit_misc'),
+      'referee':    url_for('edit_referee'),
+      'custom':     url_for('edit_custom'),
+      'download':   url_for('download_page'),
+    } %}
+    {% for step in wizard_steps %}
+    <div class="nav-item
+      {%- if step == current_step %} active
+      {%- elif step in visited %} visited
+      {%- endif %}">
+      {% if step in visited and step != current_step %}
+        <a href="{{ step_urls[step] }}">{{ step_labels[step] }}</a>
+      {% else %}
+        {{ step_labels[step] }}
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <hr class="nav-divider">
+    <div class="nav-item">
+      <form method="post" action="{{ url_for('session_clear') }}" style="display:inline">
+        <button type="submit" class="btn btn-danger btn-sm"
+          onclick="return confirm('Clear session and start over?')">
+          ✕ Reset
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- ── Main content ───────────────────────────────────────── -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── Info panel ─────────────────────────────────────────── -->
+  <aside class="info-panel">
+    <div class="info-title">Info</div>
+    {% block info %}
+    <p class="info-text">Use the sidebar to navigate between sections.</p>
+    <p class="info-tip">Changes are saved when you click <strong>Save</strong> or <strong>Next</strong>.</p>
+    {% endblock %}
+
+    {% if session.get('cv') %}
+    <div style="margin-top: 16px;">
+      <div class="info-title">Session</div>
+      {% set cv_data = session.get('cv', {}) %}
+      <div class="cv-summary">
+        <div class="cv-summary-row">
+          <span class="label">Employment</span>
+          <span class="value">{{ cv_data.get('employment', []) | length }}</span>
+        </div>
+        <div class="cv-summary-row">
+          <span class="label">Education</span>
+          <span class="value">{{ cv_data.get('education', []) | length }}</span>
+        </div>
+        <div class="cv-summary-row">
+          <span class="label">Skills</span>
+          <span class="value">{{ cv_data.get('skills', []) | length }}</span>
+        </div>
+        <div class="cv-summary-row">
+          <span class="label">Misc</span>
+          <span class="value">{{ cv_data.get('misc', []) | length }}</span>
+        </div>
+        <div class="cv-summary-row">
+          <span class="label">Custom</span>
+          <span class="value">{{ cv_data.get('custom_sections', []) | length }}</span>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </aside>
+
+</div><!-- .app-wrapper -->
+
+<script src="{{ url_for('static', filename='tui.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

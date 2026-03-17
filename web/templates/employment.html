@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ EMPLOYMENT ───────────────────────────────────────┐</pre>
+
+<form method="post" id="employment-form">
+
+  <!-- Hidden template row (cloned by JS) -->
+  <div class="entry-row template" id="employment-template">
+    <div class="entry-row-header">
+      <span class="entry-idx">#</span>
+      <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+      <div class="form-group">
+        <label>Start Year</label>
+        <input type="text" name="employment[__IDX__][start_year]" placeholder="2020">
+      </div>
+      <div class="form-group">
+        <label>End Year</label>
+        <div class="input-with-btn">
+          <input type="text" name="employment[__IDX__][end_year]" placeholder="2024 or present">
+          <button type="button" class="present-btn" onclick="setPresent(this)" title="Set to present">∞</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Job Title</label>
+      <input type="text" name="employment[__IDX__][title]" placeholder="Senior Engineer">
+    </div>
+    <div class="form-row" style="grid-template-columns: 2fr 1fr;">
+      <div class="form-group">
+        <label>Organisation</label>
+        <input type="text" name="employment[__IDX__][organization]" placeholder="Acme Corp">
+      </div>
+      <div class="form-group">
+        <label>Location</label>
+        <input type="text" name="employment[__IDX__][location]" placeholder="London, UK">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" data-title="Employment Entries">
+    <div class="panel-body">
+      <div id="employment-list" class="entry-list">
+        {% for entry in cv.employment %}
+        <div class="entry-row">
+          <div class="entry-row-header">
+            <span class="entry-idx">#{{ loop.index }}</span>
+            <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+          </div>
+          <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+              <label>Start Year</label>
+              <input type="text" name="employment[{{ loop.index0 }}][start_year]"
+                     value="{{ entry.start_year }}" placeholder="2020">
+            </div>
+            <div class="form-group">
+              <label>End Year</label>
+              <div class="input-with-btn">
+                <input type="text" name="employment[{{ loop.index0 }}][end_year]"
+                       value="{{ entry.end_year }}" placeholder="2024 or present">
+                <button type="button" class="present-btn" onclick="setPresent(this)" title="Set to present">∞</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Job Title</label>
+            <input type="text" name="employment[{{ loop.index0 }}][title]"
+                   value="{{ entry.title }}" placeholder="Senior Engineer">
+          </div>
+          <div class="form-row" style="grid-template-columns: 2fr 1fr;">
+            <div class="form-group">
+              <label>Organisation</label>
+              <input type="text" name="employment[{{ loop.index0 }}][organization]"
+                     value="{{ entry.organization }}" placeholder="Acme Corp">
+            </div>
+            <div class="form-group">
+              <label>Location</label>
+              <input type="text" name="employment[{{ loop.index0 }}][location]"
+                     value="{{ entry.location }}" placeholder="London, UK">
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="add-row-btn">
+        <button type="button" class="btn btn-primary btn-sm" id="add-employment">+ Add Entry</button>
+        <span class="text-muted" style="font-size:10px;">Click to add a new employment entry</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="wizard-nav">
+    <button type="submit" name="action" value="prev" class="btn">← Personal</button>
+    <div class="nav-right">
+      <button type="submit" name="action" value="save" class="btn btn-amber">Save</button>
+      <button type="submit" name="action" value="next" class="btn btn-success">Education →</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">List your work history, most recent first.</p>
+<p class="info-tip">Click <strong>∞</strong> to set the end year to the LaTeX present marker (<code>$\cdots\cdot$</code>).</p>
+<p class="info-text" style="margin-top:8px;">Fields map to:</p>
+<div class="info-code">\entry*[start -- end]%
+  \textbf{Title,} Org, Loc</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const em = new EntryManager('employment-list', 'employment-template', 'employment');
+  document.getElementById('add-employment').addEventListener('click', () => em.addRow());
+</script>
+{% endblock %}

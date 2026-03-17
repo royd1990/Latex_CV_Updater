@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ SKILLS ───────────────────────────────────────────┐</pre>
+
+<form method="post">
+
+  <!-- Hidden template row -->
+  <div class="entry-row template" id="skills-template">
+    <div class="entry-row-header">
+      <span class="entry-idx">#</span>
+      <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr 2fr;">
+      <div class="form-group">
+        <label>Category Label</label>
+        <input type="text" name="skills[__IDX__][label]" placeholder="Programming">
+      </div>
+      <div class="form-group">
+        <label>Skills</label>
+        <input type="text" name="skills[__IDX__][items]" placeholder="Python, C++, Rust">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" data-title="Skill Categories">
+    <div class="panel-body">
+      <div id="skills-list" class="entry-list">
+        {% for entry in cv.skills %}
+        <div class="entry-row">
+          <div class="entry-row-header">
+            <span class="entry-idx">#{{ loop.index }}</span>
+            <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+          </div>
+          <div class="form-row" style="grid-template-columns: 1fr 2fr;">
+            <div class="form-group">
+              <label>Category Label</label>
+              <input type="text" name="skills[{{ loop.index0 }}][label]"
+                     value="{{ entry.label }}" placeholder="Programming">
+            </div>
+            <div class="form-group">
+              <label>Skills</label>
+              <input type="text" name="skills[{{ loop.index0 }}][items]"
+                     value="{{ entry.items }}" placeholder="Python, C++, Rust">
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="add-row-btn">
+        <button type="button" class="btn btn-primary btn-sm" id="add-skill">+ Add Category</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wizard-nav">
+    <button type="submit" name="action" value="prev" class="btn">← Education</button>
+    <div class="nav-right">
+      <button type="submit" name="action" value="save" class="btn btn-amber">Save</button>
+      <button type="submit" name="action" value="next" class="btn btn-success">Misc →</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Group your skills into named categories.</p>
+<p class="info-tip">The <strong>Label</strong> appears in the left column; <strong>Skills</strong> is free-form text on the right.</p>
+<p class="info-text" style="margin-top:8px;">Example:</p>
+<div class="info-code">Label: Languages
+Skills: Python, C++, Rust</div>
+<p class="info-text" style="margin-top:8px;">LaTeX commands in the items field are preserved as-is.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const em = new EntryManager('skills-list', 'skills-template', 'skills');
+  document.getElementById('add-skill').addEventListener('click', () => em.addRow());
+</script>
+{% endblock %}

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ MISCELLANEOUS ────────────────────────────────────┐</pre>
+
+<form method="post">
+
+  <div class="panel" data-title="Section Options">
+    <div class="panel-body">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; text-transform:none; color:var(--fg);">
+        <input type="checkbox" name="skip_misc" id="skip_misc" value="1"
+               {{ 'checked' if 'misc' in cv.skipped_sections else '' }}
+               onchange="toggleMiscFields(this)"
+               style="accent-color:var(--amber); width:14px; height:14px;">
+        <span>Skip this section — omit Miscellaneous from the CV entirely</span>
+      </label>
+    </div>
+  </div>
+
+  <div id="misc-fields" style="{{ 'opacity:0.35; pointer-events:none;' if 'misc' in cv.skipped_sections else '' }}">
+
+  <!-- Hidden template row -->
+  <div class="entry-row template" id="misc-template">
+    <div class="entry-row-header">
+      <span class="entry-idx">#</span>
+      <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr 2fr;">
+      <div class="form-group">
+        <label>Year</label>
+        <input type="text" name="misc[__IDX__][year]" placeholder="2023">
+      </div>
+      <div class="form-group">
+        <label>Sub-section <span class="text-muted">(optional)</span></label>
+        <input type="text" name="misc[__IDX__][subrubric]" placeholder="Awards">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" name="misc[__IDX__][title]" placeholder="Best Paper Award">
+    </div>
+    <div class="form-group">
+      <label>Description <span class="text-muted">(optional)</span></label>
+      <input type="text" name="misc[__IDX__][description]" placeholder="ACM SIGPLAN conference">
+    </div>
+  </div>
+
+  <div class="panel" data-title="Miscellaneous Entries">
+    <div class="panel-body">
+      <div id="misc-list" class="entry-list">
+        {% for entry in cv.misc %}
+        <div class="entry-row">
+          <div class="entry-row-header">
+            <span class="entry-idx">#{{ loop.index }}</span>
+            <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+          </div>
+          <div class="form-row" style="grid-template-columns: 1fr 2fr;">
+            <div class="form-group">
+              <label>Year</label>
+              <input type="text" name="misc[{{ loop.index0 }}][year]"
+                     value="{{ entry.year }}" placeholder="2023">
+            </div>
+            <div class="form-group">
+              <label>Sub-section <span class="text-muted">(optional)</span></label>
+              <input type="text" name="misc[{{ loop.index0 }}][subrubric]"
+                     value="{{ entry.subrubric }}" placeholder="Awards">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" name="misc[{{ loop.index0 }}][title]"
+                   value="{{ entry.title }}" placeholder="Best Paper Award">
+          </div>
+          <div class="form-group">
+            <label>Description <span class="text-muted">(optional)</span></label>
+            <input type="text" name="misc[{{ loop.index0 }}][description]"
+                   value="{{ entry.description }}" placeholder="ACM SIGPLAN conference">
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="add-row-btn">
+        <button type="button" class="btn btn-primary btn-sm" id="add-misc">+ Add Entry</button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- #misc-fields -->
+
+  <div class="wizard-nav">
+    <button type="submit" name="action" value="prev" class="btn">← Skills</button>
+    <div class="nav-right">
+      <button type="submit" name="action" value="save" class="btn btn-amber">Save</button>
+      <button type="submit" name="action" value="next" class="btn btn-success">Referees →</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Awards, talks, activities, and other miscellaneous items.</p>
+<p class="info-tip">Use <strong>Sub-section</strong> to group entries under a heading (e.g. "Awards", "Talks").</p>
+<p class="info-text" style="margin-top:8px;">Entries within the same sub-section should have consecutive <strong>Sub-section</strong> values.</p>
+<p class="info-tip">Leave <strong>Description</strong> blank if not needed.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const em = new EntryManager('misc-list', 'misc-template', 'misc');
+  document.getElementById('add-misc').addEventListener('click', () => em.addRow());
+
+  function toggleMiscFields(cb) {
+    const fields = document.getElementById('misc-fields');
+    fields.style.opacity = cb.checked ? '0.35' : '';
+    fields.style.pointerEvents = cb.checked ? 'none' : '';
+  }
+</script>
+{% endblock %}

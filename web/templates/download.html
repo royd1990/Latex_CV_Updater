@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ DOWNLOAD ─────────────────────────────────────────┐</pre>
+
+{% if issues %}
+<div class="panel" data-title="Prerequisites Warning">
+  <div class="panel-body">
+    <ul class="issues-list">
+      {% for issue in issues %}
+      <li>⚠ {{ issue.split('\n')[0] }}</li>
+      {% endfor %}
+    </ul>
+    <p class="text-muted" style="font-size:11px;">PDF compilation unavailable — ZIP download is still available.</p>
+  </div>
+</div>
+{% endif %}
+
+<div class="panel" data-title="Download Options">
+  <div class="panel-body">
+    <div class="download-actions">
+
+      <div class="download-card">
+        <div class="download-card-title">[ ZIP Archive ]</div>
+        <div class="download-card-desc">All generated .tex files packed into a ZIP. Open with any LaTeX editor.</div>
+        <form method="post" action="{{ url_for('download_zip') }}">
+          <button type="submit" class="btn btn-success full-width">↓ Download ZIP</button>
+        </form>
+      </div>
+
+      <div class="download-card">
+        <div class="download-card-title">[ PDF ]</div>
+        <div class="download-card-desc">Compile to PDF on the server using xelatex + biber (requires LaTeX).</div>
+        {% if issues %}
+        <button class="btn full-width" disabled title="LaTeX not available" style="opacity:0.4;">
+          ✕ Not Available
+        </button>
+        {% else %}
+        <form method="post" action="{{ url_for('download_pdf') }}" id="pdf-form">
+          <button type="submit" class="btn btn-primary full-width" id="pdf-btn"
+                  onclick="handlePdfClick(this)">
+            ↓ Download PDF
+          </button>
+        </form>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <div id="compile-status" style="display:none; margin-top:12px; font-size:12px; color:var(--amber);">
+      Compiling...
+    </div>
+  </div>
+</div>
+
+<div class="panel" data-title="CV Summary">
+  <div class="panel-body">
+    <div class="cv-summary">
+      <div class="cv-summary-row">
+        <span class="label">Name</span>
+        <span class="value">{{ cv.personal.name or '—' }}</span>
+      </div>
+      <div class="cv-summary-row">
+        <span class="label">Email</span>
+        <span class="value">{{ cv.personal.email or '—' }}</span>
+      </div>
+      <div class="cv-summary-row">
+        <span class="label">Employment entries</span>
+        <span class="value">{{ cv.employment | length }}</span>
+      </div>
+      <div class="cv-summary-row">
+        <span class="label">Education entries</span>
+        <span class="value">{{ cv.education | length }}</span>
+      </div>
+      <div class="cv-summary-row">
+        <span class="label">Skill categories</span>
+        <span class="value">{{ cv.skills | length }}</span>
+      </div>
+      <div class="cv-summary-row">
+        <span class="label">Misc entries</span>
+        <span class="value">{{ cv.misc | length }}</span>
+      </div>
+      <div class="cv-summary-row">
+        <span class="label">Referee mode</span>
+        <span class="value">{{ cv.referee_mode }}</span>
+      </div>
+      {% if cv.referee_mode == 'full' %}
+      <div class="cv-summary-row">
+        <span class="label">Referees</span>
+        <span class="value">{{ cv.referees | length }}</span>
+      </div>
+      {% endif %}
+      <div class="cv-summary-row">
+        <span class="label">Custom sections</span>
+        <span class="value">{{ cv.custom_sections | length }}</span>
+      </div>
+      {% for section in cv.custom_sections %}
+      <div class="cv-summary-row">
+        <span class="label" style="padding-left:12px;">↳ {{ section.title }}</span>
+        <span class="value">{{ section.entries | length }} entries</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="wizard-nav">
+  <a href="{{ url_for('edit_custom') }}" class="btn">← Custom Sections</a>
+  <form method="post" action="{{ url_for('session_clear') }}" style="display:inline">
+    <button type="submit" class="btn btn-danger"
+            onclick="return confirm('Clear session and start a new CV?')">
+      ✕ New Session
+    </button>
+  </form>
+</div>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Your CV is ready for download.</p>
+<p class="info-tip"><strong>ZIP</strong> contains all generated .tex files. Use this with your own LaTeX installation.</p>
+<p class="info-tip"><strong>PDF</strong> compiles the CV on the server. Requires xelatex and biber.</p>
+<p class="info-text" style="margin-top:8px;">Compilation runs:</p>
+<div class="info-code">xelatex → biber
+→ xelatex → xelatex</div>
+<p class="info-text" style="margin-top:8px;">This may take up to 30–60 seconds.</p>
+<p class="info-text" style="margin-top:8px;">Support files needed in the CV directory:</p>
+<div class="info-code">settings.sty</div>
+<div class="info-code">own-bib.bib</div>
+<div class="info-code">photo.jpg</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function handlePdfClick(btn) {
+  const statusEl = document.getElementById('compile-status');
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    startCompilePolling(statusEl);
+  }
+  // Re-enable after form submit completes (navigation will occur on success)
+  setTimeout(() => stopCompilePolling(statusEl, '', false), 120000);
+}
+</script>
+{% endblock %}

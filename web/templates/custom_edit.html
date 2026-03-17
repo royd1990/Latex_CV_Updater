@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ CUSTOM SECTION: {{ section.title | upper }} ──────────────────┐</pre>
+
+<form method="post">
+
+  <!-- Hidden template row -->
+  <div class="entry-row template" id="entry-template">
+    <div class="entry-row-header">
+      <span class="entry-idx">#</span>
+      <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+    </div>
+    <div class="form-group">
+      <label>Sub-section <span class="text-muted">(optional — creates \subrubric{})</span></label>
+      <input type="text" name="entries[__IDX__][subrubric]" placeholder="Journal Articles">
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr 3fr;">
+      <div class="form-group">
+        <label>Label <span class="text-muted">(left col)</span></label>
+        <input type="text" name="entries[__IDX__][label]" placeholder="2024">
+      </div>
+      <div class="form-group">
+        <label>Content</label>
+        <textarea name="entries[__IDX__][content]" placeholder="Author(s). Title. Venue." rows="3"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" data-title="Section Settings">
+    <div class="panel-body">
+      <div class="form-row" style="grid-template-columns: 2fr 1fr;">
+        <div class="form-group">
+          <label for="section_title">Section Title</label>
+          <input type="text" id="section_title" name="section_title"
+                 value="{{ section.title }}">
+        </div>
+        <div class="form-group">
+          <label for="section_filename">Filename <span class="text-muted">(no .tex)</span></label>
+          <input type="text" id="section_filename" name="section_filename"
+                 value="{{ section.filename }}">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" data-title="Entries">
+    <div class="panel-body">
+      <div id="entry-list" class="entry-list">
+        {% for entry in section.entries %}
+        <div class="entry-row">
+          <div class="entry-row-header">
+            <span class="entry-idx">#{{ loop.index }}</span>
+            <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+          </div>
+          <div class="form-group">
+            <label>Sub-section <span class="text-muted">(optional)</span></label>
+            <input type="text" name="entries[{{ loop.index0 }}][subrubric]"
+                   value="{{ entry.subrubric }}" placeholder="Journal Articles">
+          </div>
+          <div class="form-row" style="grid-template-columns: 1fr 3fr;">
+            <div class="form-group">
+              <label>Label</label>
+              <input type="text" name="entries[{{ loop.index0 }}][label]"
+                     value="{{ entry.label }}" placeholder="2024">
+            </div>
+            <div class="form-group">
+              <label>Content</label>
+              <textarea name="entries[{{ loop.index0 }}][content]"
+                        rows="3">{{ entry.content }}</textarea>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="add-row-btn">
+        <button type="button" class="btn btn-primary btn-sm" id="add-entry">+ Add Entry</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wizard-nav">
+    <a href="{{ url_for('edit_custom') }}" class="btn">← Back to Sections</a>
+    <button type="submit" name="action" value="save" class="btn btn-success">Save Section</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Edit the custom section "{{ section.title }}".</p>
+<p class="info-tip">The <strong>Label</strong> goes in the left column (e.g. year, date range).</p>
+<p class="info-tip">The <strong>Content</strong> field supports raw LaTeX commands.</p>
+<p class="info-text" style="margin-top:8px;">Use <strong>Sub-section</strong> to insert a <code>\subrubric{}</code> header above an entry group.</p>
+<p class="info-text" style="margin-top:8px;">Each entry generates:</p>
+<div class="info-code">\entry*[label]
+  content</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const em = new EntryManager('entry-list', 'entry-template', 'entries');
+  document.getElementById('add-entry').addEventListener('click', () => em.addRow());
+</script>
+{% endblock %}
