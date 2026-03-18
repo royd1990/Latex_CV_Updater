@@ -27,6 +27,10 @@
   \usepackage[varqu,varl,scale=0.9]{zi4}
 \fi
 
+<% if prefix_marker %>% Custom prefix marker (overrides \faBookmark default)
+\prefixmarker{<< prefix_marker >>}
+<% endif %>
+
 \includecomment{fullonly}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -46,24 +50,18 @@
 }
 
 \rightheader{~}
+<% if not personal.skip_photo %>
 \begin{fullonly}
 \photo[r]{<< personal.photo or 'photo' >>}
 \photoscale{0.13}
 \end{fullonly}
+<% endif %>
 
 \title{Curriculum Vitae}
 
 \begin{document}
 \makeheaders[c]
 
-<% if 'employment' not in skipped_sections %>\makerubric{employment}
-<% endif %><% if 'education' not in skipped_sections %>\makerubric{education}
-<% endif %>
-<% if 'skills' not in skipped_sections %>\makerubric{skills}
-<% endif %><% if 'misc' not in skipped_sections %>\makerubric{misc}
-<% endif %>
-<% if 'referee' not in skipped_sections %>\makerubric{referee}
-<% endif %>
-<% for section in custom_sections %>\makerubric{<< section.filename >>}
-<% endfor %>
+<% for section_key in section_order %><% if section_key not in skipped_sections %>\makerubric{<< section_key >>}
+<% endif %><% endfor %>
 \end{document}

@@ -77,6 +77,10 @@
         <span class="value">{{ cv.skills | length }}</span>
       </div>
       <div class="cv-summary-row">
+        <span class="label">Project highlights</span>
+        <span class="value">{{ cv.project_highlights | length }}</span>
+      </div>
+      <div class="cv-summary-row">
         <span class="label">Misc entries</span>
         <span class="value">{{ cv.misc | length }}</span>
       </div>
@@ -105,7 +109,7 @@
 </div>
 
 <div class="wizard-nav">
-  <a href="{{ url_for('edit_custom') }}" class="btn">← Custom Sections</a>
+  <a href="{{ url_for('edit_reorder') }}" class="btn">← Section Order</a>
   <form method="post" action="{{ url_for('session_clear') }}" style="display:inline">
     <button type="submit" class="btn btn-danger"
             onclick="return confirm('Clear session and start a new CV?')">

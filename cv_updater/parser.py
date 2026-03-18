@@ -7,10 +7,12 @@ from pathlib import Path
 
 from .models import (
     CVData,
+    DEFAULT_SECTION_ORDER,
     EducationEntry,
     EmploymentEntry,
     MiscEntry,
     PersonalInfo,
+    ProjectEntry,
     RefereeEntry,
     SkillCategory,
 )
@@ -21,6 +23,10 @@ PRESENT_MARKER = r"$\cdots\cdot$"
 def parse_cv(cv_dir: Path) -> CVData:
     """Parse all .tex files in a CV directory into a CVData object."""
     data = CVData()
+
+    about_path = cv_dir / "about.tex"
+    if about_path.exists():
+        data.about = parse_about(about_path.read_text())
 
     employment_path = cv_dir / "employment.tex"
     if employment_path.exists():
@@ -34,13 +40,19 @@ def parse_cv(cv_dir: Path) -> CVData:
     if skills_path.exists():
         data.skills = parse_skills(skills_path.read_text())
 
+    project_highlights_path = cv_dir / "project_highlights.tex"
+    if project_highlights_path.exists():
+        data.project_highlights = parse_project_highlights(project_highlights_path.read_text())
+
     misc_path = cv_dir / "misc.tex"
     if misc_path.exists():
         data.misc = parse_misc(misc_path.read_text())
 
     main_path = cv_dir / "cv-llt.tex"
     if main_path.exists():
-        data.personal = parse_personal_info(main_path.read_text())
+        main_text = main_path.read_text()
+        data.personal = parse_personal_info(main_text)
+        data.section_order = _parse_section_order(main_text, data)
 
     # Detect referee mode
     referee_path = cv_dir / "referee.tex"
@@ -58,6 +70,24 @@ def parse_cv(cv_dir: Path) -> CVData:
     return data
 
 
+def _parse_section_order(main_text: str, data: CVData) -> list[str]:
+    """Extract the \makerubric order from cv-llt.tex, preserving user-defined section order."""
+    order = []
+    seen = set()
+    for m in re.finditer(r"^(?!%)\s*\\makerubric\{([^}]+)\}", main_text, re.MULTILINE):
+        key = m.group(1).strip()
+        if key not in seen:
+            order.append(key)
+            seen.add(key)
+
+    # Ensure all default built-in sections are present (add missing ones at end)
+    for key in DEFAULT_SECTION_ORDER:
+        if key not in seen:
+            order.append(key)
+
+    return order
+
+
 def _parse_date_range(date_str: str) -> tuple[str, str]:
     """Parse a date range like '2021 -- $\\cdots\\cdot$' into (start, end)."""
     date_str = date_str.strip()
@@ -65,6 +95,14 @@ def _parse_date_range(date_str: str) -> tuple[str, str]:
     if len(parts) == 2:
         return parts[0].strip(), parts[1].strip()
     return date_str, ""
+
+
+def parse_about(text: str) -> str:
+    """Parse about.tex content, returning the plain text body."""
+    m = re.search(r"\\entry\*\[\\relax\]\s*([\s\S]*?)(?:\\end\{rubric\})", text)
+    if m:
+        return m.group(1).strip()
+    return ""
 
 
 def parse_employment(text: str) -> list[EmploymentEntry]:
@@ -171,6 +209,55 @@ def parse_skills(text: str) -> list[SkillCategory]:
     return entries
 
 
+def parse_project_highlights(text: str) -> list[ProjectEntry]:
+    """Parse project_highlights.tex content."""
+    entries = []
+    pattern = r"\\entry\*\[([^\]]+)\]%?\s*\n?\t*(.*?)(?=\\entry\*|\s*\\end\{rubric\})"
+    for match in re.finditer(pattern, text, re.DOTALL):
+        date_str = match.group(1)
+        content = match.group(2).strip()
+        content = re.sub(r"^%.*$", "", content, flags=re.MULTILINE).strip()
+
+        start, end = _parse_date_range(date_str)
+
+        # Parse \textbf{Title}
+        title = ""
+        title_match = re.match(r"\\textbf\{([^}]+)\}", content)
+        if title_match:
+            title = title_match.group(1).strip()
+            rest = content[title_match.end():]
+        else:
+            rest = content
+
+        # Extract URL if present
+        url = ""
+        url_match = re.search(r"\\href\{([^}]+)\}", rest)
+        if url_match:
+            url = url_match.group(1).strip()
+
+        # Extract description from \par <text> (not starting with \textit)
+        description = ""
+        desc_match = re.search(r"\\par\s+(?!\\textit)(.*?)(?=\\par|$)", rest, re.DOTALL)
+        if desc_match:
+            description = desc_match.group(1).strip()
+
+        # Extract technologies from \par \textit{Technologies:} ...
+        technologies = ""
+        tech_match = re.search(r"\\textit\{Technologies:\}\s*(.*?)(?=\\par|$)", rest, re.DOTALL)
+        if tech_match:
+            technologies = tech_match.group(1).strip()
+
+        entries.append(ProjectEntry(
+            title=title,
+            start_year=start,
+            end_year=end,
+            description=description,
+            technologies=technologies,
+            url=url,
+        ))
+    return entries
+
+
 def parse_misc(text: str) -> list[MiscEntry]:
     """Parse misc.tex content."""
     entries = []
@@ -240,10 +327,15 @@ def parse_personal_info(text: str) -> PersonalInfo:
     if github_match:
         info.github = github_match.group(1).strip()
 
-    # Photo
+    # Photo — detect skip_photo if the fullonly block is absent or commented
     photo_match = re.search(r"\\photo\[r\]\{([^}]+)\}", text)
     if photo_match:
         info.photo = photo_match.group(1).strip()
+        # Check if the fullonly block containing the photo is present (not commented out)
+        fullonly_match = re.search(r"\\begin\{fullonly\}", text)
+        info.skip_photo = not bool(fullonly_match)
+    else:
+        info.skip_photo = True
 
     return info
 

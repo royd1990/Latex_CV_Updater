@@ -33,25 +33,31 @@
   <!-- ── Sidebar nav ────────────────────────────────────────── -->
   <aside class="sidebar">
     <div class="nav-title">Navigation</div>
-    {% set step_labels = {
-      'personal':   'Personal',
-      'employment': 'Employment',
-      'education':  'Education',
-      'skills':     'Skills',
-      'misc':       'Misc',
-      'referee':    'Referees',
-      'custom':     'Custom',
-      'download':   'Download',
+    {% set step_labels = step_labels if step_labels is defined else {
+      'personal':           'Personal',
+      'about':              'About',
+      'employment':         'Employment',
+      'education':          'Education',
+      'skills':             'Skills',
+      'project_highlights': 'Projects',
+      'misc':               'Misc',
+      'referee':            'Referees',
+      'custom':             'Custom',
+      'reorder':            'Order',
+      'download':           'Download',
     } %}
     {% set step_urls = {
-      'personal':   url_for('edit_personal'),
-      'employment': url_for('edit_employment'),
-      'education':  url_for('edit_education'),
-      'skills':     url_for('edit_skills'),
-      'misc':       url_for('edit_misc'),
-      'referee':    url_for('edit_referee'),
-      'custom':     url_for('edit_custom'),
-      'download':   url_for('download_page'),
+      'personal':           url_for('edit_personal'),
+      'about':              url_for('edit_about'),
+      'employment':         url_for('edit_employment'),
+      'education':          url_for('edit_education'),
+      'skills':             url_for('edit_skills'),
+      'project_highlights': url_for('edit_project_highlights'),
+      'misc':               url_for('edit_misc'),
+      'referee':            url_for('edit_referee'),
+      'custom':             url_for('edit_custom'),
+      'reorder':            url_for('edit_reorder'),
+      'download':           url_for('download_page'),
     } %}
     {% for step in wizard_steps %}
     <div class="nav-item
@@ -106,6 +112,10 @@
         <div class="cv-summary-row">
           <span class="label">Skills</span>
           <span class="value">{{ cv_data.get('skills', []) | length }}</span>
+        </div>
+        <div class="cv-summary-row">
+          <span class="label">Projects</span>
+          <span class="value">{{ cv_data.get('project_highlights', []) | length }}</span>
         </div>
         <div class="cv-summary-row">
           <span class="label">Misc</span>

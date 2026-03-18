@@ -23,15 +23,17 @@ from flask import (
 )
 
 from cv_updater.compiler import check_prerequisites, compile_cv
-from cv_updater.generator import copy_support_files, generate_cv, generate_main
+from cv_updater.generator import copy_support_files, copy_photo_file, generate_cv, generate_main
 from cv_updater.models import (
     CVData,
     CustomEntry,
     CustomSection,
+    DEFAULT_SECTION_ORDER,
     EducationEntry,
     EmploymentEntry,
     MiscEntry,
     PersonalInfo,
+    ProjectEntry,
     RefereeEntry,
     SkillCategory,
 )
@@ -69,14 +71,43 @@ except ImportError:
 
 WIZARD_STEPS = [
     "personal",
+    "about",
     "employment",
     "education",
     "skills",
+    "project_highlights",
     "misc",
     "referee",
     "custom",
+    "reorder",
     "download",
 ]
+
+# Human-readable labels for wizard steps
+STEP_LABELS = {
+    "personal": "Personal",
+    "about": "About",
+    "employment": "Employment",
+    "education": "Education",
+    "skills": "Skills",
+    "project_highlights": "Projects",
+    "misc": "Misc",
+    "referee": "Referees",
+    "custom": "Custom",
+    "reorder": "Order",
+    "download": "Download",
+}
+
+# Built-in section display names for the reorder page
+BUILTIN_SECTION_LABELS = {
+    "about": "About",
+    "employment": "Employment",
+    "education": "Education",
+    "skills": "Skills / Expertise",
+    "project_highlights": "Project Highlights",
+    "misc": "Miscellaneous",
+    "referee": "Referees",
+}
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -84,17 +115,21 @@ WIZARD_STEPS = [
 
 
 def _copy_support_files(out_dir: Path) -> None:
-    """Copy settings.sty, own-bib.bib, photo.jpg into out_dir.
-
-    Tries upload_dir first, then each SUPPORT_FILE_FALLBACK_DIRS entry.
-    copy_support_files() is a no-op if the file already exists in dest.
-    """
+    """Copy settings.sty, own-bib.bib, and photo files into out_dir."""
     upload_dir = session.get("upload_dir")
     if upload_dir:
         copy_support_files(Path(upload_dir), out_dir)
     for fallback in SUPPORT_FILE_FALLBACK_DIRS:
         if fallback.exists():
             copy_support_files(fallback, out_dir)
+    # Copy uploaded photo if any
+    photo_path = session.get("photo_path")
+    if photo_path:
+        p = Path(photo_path)
+        if p.exists():
+            dst = out_dir / p.name
+            if not dst.exists():
+                shutil.copy2(p, dst)
 
 
 def _parse_indexed(form, prefix: str, fields: list[str]) -> list[dict]:
@@ -150,6 +185,7 @@ def index():
         page_title="Home",
         issues=issues,
         wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
     )
 
 
@@ -179,6 +215,7 @@ def start_upload():
             "upload.html",
             page_title="Upload CV Files",
             wizard_steps=WIZARD_STEPS,
+            step_labels=STEP_LABELS,
         )
 
     # POST: save files to tmpdir, parse, store in session
@@ -208,6 +245,14 @@ def start_upload():
         f = request.files.get(field)
         if f and f.filename:
             dest = upload_dir / field_to_filename[field]
+            f.save(str(dest))
+            saved_any = True
+
+    # Also accept about.tex and project_highlights.tex if uploaded
+    for extra_field, extra_name in [("about", "about.tex"), ("project_highlights", "project_highlights.tex")]:
+        f = request.files.get(extra_field)
+        if f and f.filename:
+            dest = upload_dir / extra_name
             f.save(str(dest))
             saved_any = True
 
@@ -244,27 +289,88 @@ def edit_personal():
 
     if request.method == "POST":
         action = request.form.get("action", "next")
+        skip_photo = "skip_photo" in request.form
+        photo_filename = request.form.get("photo", "").strip()
+
+        # Handle photo file upload
+        photo_file = request.files.get("photo_file")
+        if photo_file and photo_file.filename and not skip_photo:
+            photo_dir = session.get("photo_dir")
+            if not photo_dir:
+                photo_dir = tempfile.mkdtemp(prefix="cv_photo_")
+                session["photo_dir"] = photo_dir
+            dest = Path(photo_dir) / photo_file.filename
+            photo_file.save(str(dest))
+            session["photo_path"] = str(dest)
+            photo_filename = Path(photo_file.filename).stem  # use stem as the LaTeX photo name
+
         cv.personal = PersonalInfo(
             name=request.form.get("name", "").strip(),
             email=request.form.get("email", "").strip(),
             linkedin=request.form.get("linkedin", "").strip(),
             linkedin_label=request.form.get("linkedin_label", "").strip(),
             github=request.form.get("github", "").strip(),
-            photo=request.form.get("photo", "").strip(),
+            photo=photo_filename,
+            skip_photo=skip_photo,
         )
+        cv.prefix_marker = request.form.get("prefix_marker", "").strip()
         save_cv(session, cv)
         _mark_visited("personal")
         if action == "next":
-            return redirect(url_for("edit_employment"))
+            return redirect(url_for("edit_about"))
         return redirect(url_for("edit_personal"))
 
     _mark_visited("personal")
+    uploaded_photo = None
+    photo_path = session.get("photo_path")
+    if photo_path:
+        uploaded_photo = Path(photo_path).name
     return render_template(
         "personal.html",
         page_title="Personal Info",
         cv=cv,
         wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
         current_step="personal",
+        visited=session.get("visited", []),
+        uploaded_photo=uploaded_photo,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Edit: about
+# ---------------------------------------------------------------------------
+
+
+@app.route("/edit/about", methods=["GET", "POST"])
+def edit_about():
+    cv = _require_cv()
+    if cv is None:
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        action = request.form.get("action", "next")
+        cv.about = request.form.get("about", "").strip()
+        if "skip_about" in request.form:
+            cv.skipped_sections.add("about")
+        else:
+            cv.skipped_sections.discard("about")
+        save_cv(session, cv)
+        _mark_visited("about")
+        if action == "prev":
+            return redirect(url_for("edit_personal"))
+        if action == "next":
+            return redirect(url_for("edit_employment"))
+        return redirect(url_for("edit_about"))
+
+    _mark_visited("about")
+    return render_template(
+        "about.html",
+        page_title="About",
+        cv=cv,
+        wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
+        current_step="about",
         visited=session.get("visited", []),
     )
 
@@ -301,7 +407,7 @@ def edit_employment():
         save_cv(session, cv)
         _mark_visited("employment")
         if action == "prev":
-            return redirect(url_for("edit_personal"))
+            return redirect(url_for("edit_about"))
         if action == "next":
             return redirect(url_for("edit_education"))
         return redirect(url_for("edit_employment"))
@@ -312,6 +418,7 @@ def edit_employment():
         page_title="Employment",
         cv=cv,
         wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
         current_step="employment",
         visited=session.get("visited", []),
     )
@@ -361,6 +468,7 @@ def edit_education():
         page_title="Education",
         cv=cv,
         wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
         current_step="education",
         visited=session.get("visited", []),
     )
@@ -390,7 +498,7 @@ def edit_skills():
         if action == "prev":
             return redirect(url_for("edit_education"))
         if action == "next":
-            return redirect(url_for("edit_misc"))
+            return redirect(url_for("edit_project_highlights"))
         return redirect(url_for("edit_skills"))
 
     _mark_visited("skills")
@@ -399,7 +507,62 @@ def edit_skills():
         page_title="Skills",
         cv=cv,
         wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
         current_step="skills",
+        visited=session.get("visited", []),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Edit: project highlights
+# ---------------------------------------------------------------------------
+
+
+@app.route("/edit/project_highlights", methods=["GET", "POST"])
+def edit_project_highlights():
+    cv = _require_cv()
+    if cv is None:
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        action = request.form.get("action", "next")
+        if "skip_projects" in request.form:
+            cv.skipped_sections.add("project_highlights")
+        else:
+            cv.skipped_sections.discard("project_highlights")
+            rows = _parse_indexed(
+                request.form,
+                "projects",
+                ["title", "start_year", "end_year", "description", "technologies", "url"],
+            )
+            cv.project_highlights = [
+                ProjectEntry(
+                    title=r["title"],
+                    start_year=r["start_year"],
+                    end_year=r["end_year"],
+                    description=r["description"],
+                    technologies=r["technologies"],
+                    url=r["url"],
+                )
+                for r in rows
+                if any(r.values())
+            ]
+        save_cv(session, cv)
+        _mark_visited("project_highlights")
+        if action == "prev":
+            return redirect(url_for("edit_skills"))
+        if action == "next":
+            return redirect(url_for("edit_misc"))
+        return redirect(url_for("edit_project_highlights"))
+
+    _mark_visited("project_highlights")
+    return render_template(
+        "project_highlights.html",
+        page_title="Project Highlights",
+        cv=cv,
+        wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
+        current_step="project_highlights",
         visited=session.get("visited", []),
     )
 
@@ -437,7 +600,7 @@ def edit_misc():
         save_cv(session, cv)
         _mark_visited("misc")
         if action == "prev":
-            return redirect(url_for("edit_skills"))
+            return redirect(url_for("edit_project_highlights"))
         if action == "next":
             return redirect(url_for("edit_referee"))
         return redirect(url_for("edit_misc"))
@@ -448,6 +611,7 @@ def edit_misc():
         page_title="Miscellaneous",
         cv=cv,
         wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
         current_step="misc",
         visited=session.get("visited", []),
     )
@@ -508,6 +672,7 @@ def edit_referee():
         page_title="Referees",
         cv=cv,
         wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
         current_step="referee",
         visited=session.get("visited", []),
     )
@@ -537,6 +702,9 @@ def edit_custom():
                 cv.custom_sections.append(
                     CustomSection(title=title, filename=filename, entries=[])
                 )
+                # Add to section_order if not already there
+                if filename not in cv.section_order:
+                    cv.section_order.append(filename)
                 save_cv(session, cv)
                 flash(f'Section "{title}" added.', "success")
             else:
@@ -547,6 +715,9 @@ def edit_custom():
             idx = int(request.form.get("idx", -1))
             if 0 <= idx < len(cv.custom_sections):
                 removed = cv.custom_sections.pop(idx)
+                # Remove from section_order
+                if removed.filename in cv.section_order:
+                    cv.section_order.remove(removed.filename)
                 save_cv(session, cv)
                 flash(f'Section "{removed.title}" deleted.', "success")
             return redirect(url_for("edit_custom"))
@@ -558,7 +729,7 @@ def edit_custom():
         if action == "next":
             save_cv(session, cv)
             _mark_visited("custom")
-            return redirect(url_for("download_page"))
+            return redirect(url_for("edit_reorder"))
 
     _mark_visited("custom")
     return render_template(
@@ -566,6 +737,7 @@ def edit_custom():
         page_title="Custom Sections",
         cv=cv,
         wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
         current_step="custom",
         visited=session.get("visited", []),
     )
@@ -590,8 +762,15 @@ def edit_custom_section(idx: int):
 
     if request.method == "POST":
         action = request.form.get("action", "save")
+        old_filename = section.filename
         section.title = request.form.get("section_title", section.title).strip()
-        section.filename = request.form.get("section_filename", section.filename).strip()
+        new_filename = request.form.get("section_filename", section.filename).strip()
+        # Update section_order if filename changed
+        if old_filename != new_filename:
+            if old_filename in cv.section_order:
+                pos = cv.section_order.index(old_filename)
+                cv.section_order[pos] = new_filename
+            section.filename = new_filename
 
         rows = _parse_indexed(
             request.form, "entries", ["label", "content", "subrubric"]
@@ -616,8 +795,64 @@ def edit_custom_section(idx: int):
         section=section,
         idx=idx,
         wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
         current_step="custom",
         visited=session.get("visited", []),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Edit: section reorder
+# ---------------------------------------------------------------------------
+
+
+@app.route("/edit/reorder", methods=["GET", "POST"])
+def edit_reorder():
+    cv = _require_cv()
+    if cv is None:
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        action = request.form.get("action", "next")
+        order_json = request.form.get("section_order", "")
+        if order_json:
+            import json
+            try:
+                new_order = json.loads(order_json)
+                if isinstance(new_order, list):
+                    cv.section_order = [str(k) for k in new_order]
+            except (json.JSONDecodeError, ValueError):
+                flash("Invalid section order data.", "error")
+
+        save_cv(session, cv)
+        _mark_visited("reorder")
+        if action == "prev":
+            return redirect(url_for("edit_custom"))
+        if action == "next":
+            return redirect(url_for("download_page"))
+        return redirect(url_for("edit_reorder"))
+
+    _mark_visited("reorder")
+    # Build a labelled list of sections in current order
+    # Include built-in sections + custom sections
+    custom_filenames = {s.filename: s.title for s in cv.custom_sections}
+    all_section_labels = {**BUILTIN_SECTION_LABELS, **custom_filenames}
+
+    ordered_sections = []
+    for key in cv.section_order:
+        label = all_section_labels.get(key, key)
+        skipped = key in cv.skipped_sections
+        ordered_sections.append({"key": key, "label": label, "skipped": skipped})
+
+    return render_template(
+        "reorder.html",
+        page_title="Section Order",
+        cv=cv,
+        wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
+        current_step="reorder",
+        visited=session.get("visited", []),
+        ordered_sections=ordered_sections,
     )
 
 
@@ -639,6 +874,7 @@ def download_page():
         cv=cv,
         issues=issues,
         wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
         current_step="download",
         visited=session.get("visited", []),
     )
@@ -742,6 +978,9 @@ def session_clear():
     upload_dir = session.get("upload_dir")
     if upload_dir:
         shutil.rmtree(upload_dir, ignore_errors=True)
+    photo_dir = session.get("photo_dir")
+    if photo_dir:
+        shutil.rmtree(photo_dir, ignore_errors=True)
     session.clear()
     flash("Session cleared.", "success")
     return redirect(url_for("index"))

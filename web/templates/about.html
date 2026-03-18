@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ ABOUT ─────────────────────────────────────────────┐</pre>
+
+<form method="post">
+
+  <div class="panel" data-title="Section Options">
+    <div class="panel-body">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; text-transform:none; color:var(--fg);">
+        <input type="checkbox" name="skip_about" id="skip_about" value="1"
+               {{ 'checked' if 'about' in cv.skipped_sections else '' }}
+               onchange="toggleAboutFields(this)"
+               style="accent-color:var(--amber); width:14px; height:14px;">
+        <span>Skip this section — omit About from the CV entirely</span>
+      </label>
+    </div>
+  </div>
+
+  <div id="about-fields" style="{{ 'opacity:0.35; pointer-events:none;' if 'about' in cv.skipped_sections else '' }}">
+    <div class="panel" data-title="About Text">
+      <div class="panel-body">
+        <div class="form-group">
+          <label for="about">Professional Summary</label>
+          <textarea id="about" name="about" rows="5"
+                    placeholder="A brief professional summary. LaTeX commands are supported."
+                    style="width:100%; resize:vertical;">{{ cv.about }}</textarea>
+          <span class="text-muted" style="font-size:10px;">Appears at the top of your CV. LaTeX formatting is supported.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wizard-nav">
+    <button type="submit" name="action" value="prev" class="btn">← Personal</button>
+    <div class="nav-right">
+      <button type="submit" name="action" value="save" class="btn btn-amber">Save</button>
+      <button type="submit" name="action" value="next" class="btn btn-success">Employment →</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">A short professional summary placed at the top of your CV.</p>
+<p class="info-tip">Keep it to 2–4 sentences highlighting your expertise, current role, and goals.</p>
+<p class="info-tip">LaTeX commands like <code>\textbf{...}</code> and <code>\emph{...}</code> are supported.</p>
+<p class="info-tip">Leave blank (or check Skip) to omit this section entirely.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function toggleAboutFields(cb) {
+    const fields = document.getElementById('about-fields');
+    fields.style.opacity = cb.checked ? '0.35' : '';
+    fields.style.pointerEvents = cb.checked ? 'none' : '';
+  }
+</script>
+{% endblock %}

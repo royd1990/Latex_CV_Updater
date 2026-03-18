@@ -4,6 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+#: Default order in which sections appear in the generated CV.
+DEFAULT_SECTION_ORDER: list[str] = [
+    "about",
+    "employment",
+    "education",
+    "skills",
+    "project_highlights",
+    "misc",
+    "referee",
+]
+
 
 @dataclass
 class EmploymentEntry:
@@ -39,6 +50,20 @@ class SkillCategory:
 
 
 @dataclass
+class ProjectEntry:
+    title: str
+    start_year: str
+    end_year: str
+    description: str
+    technologies: str = ""
+    url: str = ""
+
+    @property
+    def date_range(self) -> str:
+        return f"{self.start_year} -- {self.end_year}"
+
+
+@dataclass
 class MiscEntry:
     year: str
     title: str
@@ -63,6 +88,7 @@ class PersonalInfo:
     linkedin_label: str = ""
     github: str = ""
     photo: str = ""
+    skip_photo: bool = False
 
 
 @dataclass
@@ -82,11 +108,15 @@ class CustomSection:
 @dataclass
 class CVData:
     personal: PersonalInfo = field(default_factory=PersonalInfo)
+    about: str = ""
     employment: list[EmploymentEntry] = field(default_factory=list)
     education: list[EducationEntry] = field(default_factory=list)
     skills: list[SkillCategory] = field(default_factory=list)
+    project_highlights: list[ProjectEntry] = field(default_factory=list)
     misc: list[MiscEntry] = field(default_factory=list)
     referees: list[RefereeEntry] = field(default_factory=list)
     referee_mode: str = "short"  # "short" = available on request, "full" = listed
     skipped_sections: set = field(default_factory=set)  # section keys to omit entirely
     custom_sections: list[CustomSection] = field(default_factory=list)
+    section_order: list[str] = field(default_factory=lambda: list(DEFAULT_SECTION_ORDER))
+    prefix_marker: str = ""  # Override \faBookmark prefix marker (e.g. "$\\cdot$", "\\textendash")

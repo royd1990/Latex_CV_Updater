@@ -21,10 +21,12 @@ from .models import (
     CVData,
     CustomEntry,
     CustomSection,
+    DEFAULT_SECTION_ORDER,
     EducationEntry,
     EmploymentEntry,
     MiscEntry,
     PersonalInfo,
+    ProjectEntry,
     RefereeEntry,
     SkillCategory,
 )
@@ -132,6 +134,7 @@ def _display_personal(p: PersonalInfo) -> None:
     table.add_row("Email", p.email or "(not set)")
     table.add_row("LinkedIn", p.linkedin or "(not set)")
     table.add_row("Website", p.github or "(not set)")
+    table.add_row("Photo", "(skip)" if p.skip_photo else (p.photo or "(not set)"))
     console.print(table)
 
 
@@ -172,6 +175,13 @@ def _build_entry_table(section_name: str, entries: list) -> Table:
         table.add_column("Items", style="dim_text")
         for i, e in enumerate(entries, 1):
             table.add_row(str(i), e.label, e.items[:90])
+    elif section_name == "Project Highlights":
+        table.add_column("#", style="muted", width=3, justify="right")
+        table.add_column("Period", style="accent", min_width=14)
+        table.add_column("Title", style="dim_text")
+        table.add_column("Technologies", style="secondary")
+        for i, e in enumerate(entries, 1):
+            table.add_row(str(i), e.date_range, e.title, e.technologies[:50])
     elif section_name == "Miscellaneous":
         table.add_column("#", style="muted", width=3, justify="right")
         table.add_column("Year", style="accent", min_width=6)
@@ -199,6 +209,8 @@ def _entry_summary(entry) -> str:
     elif isinstance(entry, SkillCategory):
         preview = entry.items[:55] + ("…" if len(entry.items) > 55 else "")
         return f"[{entry.label}]  {preview}"
+    elif isinstance(entry, ProjectEntry):
+        return f"[{entry.date_range}]  {entry.title}"
     elif isinstance(entry, MiscEntry):
         return f"[{entry.year}]  {entry.title}  ({entry.subrubric})"
     elif isinstance(entry, CustomEntry):
@@ -262,9 +274,11 @@ def main() -> None:
     for f in generated:
         _ok(f"Written  {f.name}")
 
+    # Always regenerate main file to apply section order and new fields
+    main_file = generate_main(data, cv_dir)
+    _ok(f"Written  {main_file.name}")
+
     if mode == "Create new CV":
-        main_file = generate_main(data, cv_dir)
-        _ok(f"Written  {main_file.name}")
         copied = copy_support_files(DEFAULT_CV_DIR, cv_dir)
         for f in copied:
             _ok(f"Copied   {f}")
@@ -319,9 +333,11 @@ def _ask_cv_directory() -> Path:
 # ─── Update mode ──────────────────────────────────────────────────────────────
 
 _SECTION_KEYS = {
+    "About": "about",
     "Employment": "employment",
     "Education": "education",
     "Skills": "skills",
+    "Project Highlights": "project_highlights",
     "Miscellaneous": "misc",
 }
 
@@ -330,6 +346,13 @@ _SECTION_ACTIONS = [
     "Add entry",
     "Edit entry",
     "Remove entry",
+    "Skip section",
+    "Go back",
+]
+
+_ABOUT_ACTIONS = [
+    "Keep as is",
+    "Edit text",
     "Skip section",
     "Go back",
 ]
@@ -358,9 +381,22 @@ def _edit_personal_info(existing: PersonalInfo) -> PersonalInfo | None:
     github = _ask(questionary.text, "Website / GitHub URL (optional):", default=existing.github)
     if github is None:
         return None
-    photo = _ask(questionary.text, "Photo filename (without extension):", default=existing.photo or "photo")
-    if photo is None:
-        return None
+
+    skip_photo = _ask(questionary.confirm, "Skip photo entirely?", default=existing.skip_photo)
+    photo = ""
+    if not skip_photo:
+        photo = _ask(
+            questionary.text,
+            "Photo filename (without extension):",
+            default=existing.photo or "photo",
+        ) or ""
+
+    prefix_marker = _ask(
+        questionary.text,
+        "Prefix marker (leave blank for default \\faBookmark, e.g. $\\cdot$):",
+        default="",
+    ) or ""
+
     return PersonalInfo(
         name=name,
         email=email,
@@ -368,7 +404,8 @@ def _edit_personal_info(existing: PersonalInfo) -> PersonalInfo | None:
         linkedin_label=linkedin_label,
         github=github,
         photo=photo,
-    )
+        skip_photo=bool(skip_photo),
+    ), prefix_marker
 
 
 def _update_mode(cv_dir: Path) -> CVData | None:
@@ -380,15 +417,40 @@ def _update_mode(cv_dir: Path) -> CVData | None:
     _section_rule("Personal Info")
     _display_personal(data.personal)
     if _ask(questionary.confirm, "Edit personal info?", default=False):
-        updated = _edit_personal_info(data.personal)
-        if updated is None:
+        result = _edit_personal_info(data.personal)
+        if result is None:
             return None
-        data.personal = updated
+        data.personal, data.prefix_marker = result
+
+    # About section
+    console.print()
+    _section_rule("About")
+    if data.about:
+        console.print(f"  [dim_text]{data.about[:120]}{'…' if len(data.about) > 120 else ''}[/dim_text]")
+    else:
+        console.print("  [muted](no about text)[/muted]")
+    console.print()
+
+    about_action = _ask(
+        questionary.select,
+        "About section:",
+        choices=_ABOUT_ACTIONS,
+    )
+    if about_action == "Edit text":
+        text = _ask(questionary.text, "About text (professional summary):", default=data.about)
+        if text is not None:
+            data.about = text
+            data.skipped_sections.discard("about")
+    elif about_action == "Skip section":
+        data.skipped_sections.add("about")
+    elif about_action == "Keep as is":
+        data.skipped_sections.discard("about")
 
     sections = [
         ("Employment", data.employment, _edit_employment_entries),
         ("Education", data.education, _edit_education_entries),
         ("Skills", data.skills, _edit_skill_entries),
+        ("Project Highlights", data.project_highlights, _edit_project_entries),
         ("Miscellaneous", data.misc, _edit_misc_entries),
     ]
 
@@ -413,10 +475,10 @@ def _update_mode(cv_dir: Path) -> CVData | None:
                 _section_rule("Personal Info")
                 _display_personal(data.personal)
                 if _ask(questionary.confirm, "Edit personal info?", default=False):
-                    updated = _edit_personal_info(data.personal)
-                    if updated is None:
+                    result = _edit_personal_info(data.personal)
+                    if result is None:
                         return None
-                    data.personal = updated
+                    data.personal, data.prefix_marker = result
             else:
                 i -= 1
             continue
@@ -522,6 +584,11 @@ def _update_mode(cv_dir: Path) -> CVData | None:
     if _ask(questionary.confirm, "Add custom sections (e.g. Publications, Awards)?", default=False):
         _manage_custom_sections(data)
 
+    # Section reorder
+    console.print()
+    if _ask(questionary.confirm, "Reorder sections?", default=False):
+        _reorder_sections(data)
+
     return data
 
 
@@ -595,6 +662,43 @@ def _edit_skill_entries(existing: SkillCategory | None) -> SkillCategory | None:
     return SkillCategory(label=escape_latex(label), items=escape_latex(items))
 
 
+def _edit_project_entries(existing: ProjectEntry | None) -> ProjectEntry | None:
+    defaults = existing or ProjectEntry("", "", "", "")
+
+    title = _ask(questionary.text, "Project title:", default=defaults.title)
+    if title is None:
+        return None
+
+    start = _ask(questionary.text, "Start year:", default=defaults.start_year)
+    if start is None:
+        return None
+
+    is_current = _ask(
+        questionary.confirm,
+        "Is this an ongoing project?",
+        default=(defaults.end_year == PRESENT_MARKER),
+    )
+    end = PRESENT_MARKER if is_current else _ask(questionary.text, "End year:", default=defaults.end_year)
+    if end is None:
+        return None
+
+    description = _ask(questionary.text, "Description:", default=defaults.description)
+    technologies = _ask(questionary.text, "Technologies (optional):", default=defaults.technologies)
+    url = _ask(questionary.text, "URL (optional):", default=defaults.url)
+
+    if description is None:
+        return None
+
+    return ProjectEntry(
+        title=escape_latex(title) if "\\" not in title else title,
+        start_year=start,
+        end_year=end,
+        description=escape_latex(description),
+        technologies=escape_latex(technologies or ""),
+        url=url or "",
+    )
+
+
 def _edit_misc_entries(existing: MiscEntry | None) -> MiscEntry | None:
     defaults = existing or MiscEntry("", "", "", "")
 
@@ -635,6 +739,65 @@ def _collect_referee() -> RefereeEntry | None:
         address=escape_latex(address or ""),
         email=email,
     )
+
+
+# ─── Section reorder ──────────────────────────────────────────────────────────
+
+# Labels for built-in section keys
+_SECTION_KEY_LABELS = {
+    "about": "About",
+    "employment": "Employment",
+    "education": "Education",
+    "skills": "Skills / Expertise",
+    "project_highlights": "Project Highlights",
+    "misc": "Miscellaneous",
+    "referee": "Referees",
+}
+
+
+def _reorder_sections(data: CVData) -> None:
+    """Interactive section reorder loop."""
+    # Build label map including custom sections
+    custom_map = {s.filename: s.title for s in data.custom_sections}
+    labels = {**_SECTION_KEY_LABELS, **custom_map}
+
+    while True:
+        console.print()
+        _section_rule("Section Order")
+        for i, key in enumerate(data.section_order, 1):
+            label = labels.get(key, key)
+            skipped = "[muted](skipped)[/muted]" if key in data.skipped_sections else ""
+            console.print(f"  [muted]{i:2}.[/muted]  [accent]{label}[/accent]  [dim_text]{key}[/dim_text]  {skipped}")
+        console.print()
+
+        action = _ask(
+            questionary.select,
+            "Reorder sections:",
+            choices=["Move section up", "Move section down", "Done"],
+        )
+        if action is None or action == "Done":
+            break
+
+        names = [f"{i+1}.  {labels.get(k, k)}" for i, k in enumerate(data.section_order)]
+        pick = _ask(questionary.select, "Select section:", choices=names)
+        if not pick:
+            continue
+        idx = int(pick.split(".")[0]) - 1
+
+        if action == "Move section up" and idx > 0:
+            data.section_order[idx], data.section_order[idx - 1] = (
+                data.section_order[idx - 1],
+                data.section_order[idx],
+            )
+            _ok("Section moved up.")
+        elif action == "Move section down" and idx < len(data.section_order) - 1:
+            data.section_order[idx], data.section_order[idx + 1] = (
+                data.section_order[idx + 1],
+                data.section_order[idx],
+            )
+            _ok("Section moved down.")
+        else:
+            _warn("Already at the boundary.")
 
 
 # ─── Custom sections ──────────────────────────────────────────────────────────
@@ -732,14 +895,24 @@ def _manage_custom_sections(data: CVData) -> None:
             section = _edit_custom_section(None)
             if section:
                 data.custom_sections.append(section)
+                # Add to section_order
+                if section.filename not in data.section_order:
+                    data.section_order.append(section.filename)
                 _ok(f"Section '{section.title}' added.")
         elif action == "Edit custom section":
             names = [f"{i+1}.  {s.title}" for i, s in enumerate(data.custom_sections)]
             pick = _ask(questionary.select, "Select section to edit:", choices=names)
             if pick:
                 idx = int(pick.split(".")[0]) - 1
+                old_filename = data.custom_sections[idx].filename
                 edited = _edit_custom_section(data.custom_sections[idx])
                 if edited:
+                    # Update section_order if filename changed
+                    if old_filename != edited.filename and old_filename in data.section_order:
+                        pos = data.section_order.index(old_filename)
+                        data.section_order[pos] = edited.filename
+                    elif edited.filename not in data.section_order:
+                        data.section_order.append(edited.filename)
                     data.custom_sections[idx] = edited
                     _ok("Section updated.")
         elif action == "Remove custom section":
@@ -747,7 +920,9 @@ def _manage_custom_sections(data: CVData) -> None:
             pick = _ask(questionary.select, "Select section to remove:", choices=names)
             if pick:
                 idx = int(pick.split(".")[0]) - 1
-                data.custom_sections.pop(idx)
+                removed = data.custom_sections.pop(idx)
+                if removed.filename in data.section_order:
+                    data.section_order.remove(removed.filename)
                 _ok("Section removed.")
 
 
@@ -758,9 +933,25 @@ def _create_mode() -> CVData | None:
     data = CVData()
 
     _section_rule("Personal Information")
-    data.personal = _collect_personal_info()
-    if data.personal is None:
+    result = _collect_personal_info()
+    if result is None:
         return None
+    data.personal, data.prefix_marker = result
+
+    # About section
+    console.print()
+    _section_rule("About")
+    about_choice = _ask(
+        questionary.select,
+        "About section:",
+        choices=["Add professional summary", "Skip section"],
+    )
+    if about_choice == "Add professional summary":
+        text = _ask(questionary.text, "Professional summary (LaTeX allowed):")
+        if text:
+            data.about = text
+    else:
+        data.skipped_sections.add("about")
 
     _section_rule("Employment")
     while True:
@@ -790,6 +981,24 @@ def _create_mode() -> CVData | None:
         if entry:
             data.skills.append(entry)
             _ok("Category added.")
+
+    console.print()
+    _section_rule("Project Highlights")
+    project_choice = _ask(
+        questionary.select,
+        "Project Highlights section:",
+        choices=["Add projects", "Skip section"],
+    )
+    if project_choice == "Skip section":
+        data.skipped_sections.add("project_highlights")
+    else:
+        while True:
+            entry = _edit_project_entries(None)
+            if entry:
+                data.project_highlights.append(entry)
+                _ok("Project added.")
+            if not _ask(questionary.confirm, "Add another project?", default=False):
+                break
 
     console.print()
     _section_rule("Miscellaneous")
@@ -836,10 +1045,15 @@ def _create_mode() -> CVData | None:
     if _ask(questionary.confirm, "Add custom sections (e.g. Publications, Awards)?", default=False):
         _manage_custom_sections(data)
 
+    console.print()
+    if _ask(questionary.confirm, "Reorder sections?", default=False):
+        _reorder_sections(data)
+
     return data
 
 
-def _collect_personal_info() -> PersonalInfo | None:
+def _collect_personal_info():
+    """Returns (PersonalInfo, prefix_marker) or None on cancel."""
     name = _ask(questionary.text, "Full name (e.g. John Doe, Ph.D.):")
     email = _ask(questionary.text, "Email:")
     linkedin = _ask(questionary.text, "LinkedIn URL (optional):")
@@ -854,7 +1068,21 @@ def _collect_personal_info() -> PersonalInfo | None:
             or ""
         )
     github = _ask(questionary.text, "Website / GitHub URL (optional):")
-    photo = _ask(questionary.text, "Photo filename (without extension, optional):", default="photo")
+
+    skip_photo = _ask(questionary.confirm, "Skip photo entirely?", default=False)
+    photo = ""
+    if not skip_photo:
+        photo = _ask(
+            questionary.text,
+            "Photo filename (without extension, optional):",
+            default="photo",
+        ) or "photo"
+
+    prefix_marker = _ask(
+        questionary.text,
+        "Prefix marker (blank = default \\faBookmark, e.g. $\\cdot$ for a dot):",
+        default="",
+    ) or ""
 
     if any(v is None for v in [name, email]):
         return None
@@ -865,8 +1093,9 @@ def _collect_personal_info() -> PersonalInfo | None:
         linkedin=linkedin or "",
         linkedin_label=linkedin_label or "",
         github=github or "",
-        photo=photo or "photo",
-    )
+        photo=photo,
+        skip_photo=bool(skip_photo),
+    ), prefix_marker
 
 
 if __name__ == "__main__":

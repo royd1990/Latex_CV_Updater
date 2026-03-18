@@ -3,7 +3,7 @@
 {% block content %}
 <pre class="section-header">┌─ PERSONAL INFORMATION ─────────────────────────────┐</pre>
 
-<form method="post">
+<form method="post" enctype="multipart/form-data">
   <div class="panel" data-title="Identity">
     <div class="panel-body">
       <div class="form-group">
@@ -48,12 +48,47 @@
 
   <div class="panel" data-title="Photo">
     <div class="panel-body">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; text-transform:none; color:var(--fg); margin-bottom:10px;">
+        <input type="checkbox" name="skip_photo" id="skip_photo" value="1"
+               {{ 'checked' if cv.personal.skip_photo else '' }}
+               onchange="togglePhotoFields(this)"
+               style="accent-color:var(--amber); width:14px; height:14px;">
+        <span>Skip photo — omit from the CV entirely</span>
+      </label>
+
+      <div id="photo-fields" style="{{ 'opacity:0.35; pointer-events:none;' if cv.personal.skip_photo else '' }}">
+        <div class="form-group">
+          <label for="photo_file">Upload Photo</label>
+          <input type="file" id="photo_file" name="photo_file"
+                 accept=".jpg,.jpeg,.png"
+                 style="color:var(--fg); font-size:12px;">
+          {% if uploaded_photo %}
+          <span class="text-muted" style="font-size:10px; margin-top:4px; display:block;">
+            Currently uploaded: <strong>{{ uploaded_photo }}</strong>
+          </span>
+          {% endif %}
+        </div>
+        <div class="form-group">
+          <label for="photo">Photo Filename <span class="text-muted">(auto-filled on upload, or enter manually)</span></label>
+          <input type="text" id="photo" name="photo"
+                 value="{{ cv.personal.photo }}"
+                 placeholder="photo">
+          <span class="text-muted" style="font-size:10px;">Used in \photo[r]{...} — filename without extension</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" data-title="CV Style">
+    <div class="panel-body">
       <div class="form-group">
-        <label for="photo">Photo Filename</label>
-        <input type="text" id="photo" name="photo"
-               value="{{ cv.personal.photo }}"
-               placeholder="photo.jpg">
-        <span class="text-muted" style="font-size:10px;">Relative path used in \photo[r]{...}</span>
+        <label for="prefix_marker">Prefix Marker <span class="text-muted">(replaces the default bookmark icon)</span></label>
+        <input type="text" id="prefix_marker" name="prefix_marker"
+               value="{{ cv.prefix_marker }}"
+               placeholder="leave blank to use default (\faBookmark)">
+        <span class="text-muted" style="font-size:10px; margin-top:4px; display:block;">
+          Suggestions: <code>$\cdot$</code> &nbsp;·&nbsp; <code>\textendash</code> &nbsp;·&nbsp; <code>$\triangleright$</code> &nbsp;·&nbsp; <code>$\diamond$</code>
+        </span>
       </div>
     </div>
   </div>
@@ -62,7 +97,7 @@
     <span></span>
     <div class="nav-right">
       <button type="submit" name="action" value="save" class="btn btn-amber">Save</button>
-      <button type="submit" name="action" value="next" class="btn btn-success">Employment →</button>
+      <button type="submit" name="action" value="next" class="btn btn-success">About →</button>
     </div>
   </div>
 </form>
@@ -71,5 +106,16 @@
 {% block info %}
 <p class="info-text">Personal info appears in the CV header.</p>
 <p class="info-tip">The <strong>LinkedIn Label</strong> is the display text shown in the CV (e.g. "jane-doe").</p>
-<p class="info-tip">The <strong>Photo</strong> field is the filename of your photo file — it must be in the CV directory when compiling.</p>
+<p class="info-tip">Upload a <strong>photo</strong> file directly, or enter the filename if it's already in your CV directory. Check <em>Skip photo</em> to omit it entirely.</p>
+<p class="info-tip">The <strong>Prefix Marker</strong> is the icon shown before entries using <code>\entry</code> (without <code>*</code>). The default is a FontAwesome bookmark — try <code>$\cdot$</code> for a subtle dot.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function togglePhotoFields(cb) {
+    const fields = document.getElementById('photo-fields');
+    fields.style.opacity = cb.checked ? '0.35' : '';
+    fields.style.pointerEvents = cb.checked ? 'none' : '';
+  }
+</script>
 {% endblock %}
