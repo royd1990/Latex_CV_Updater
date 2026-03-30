@@ -117,6 +117,10 @@ def generate_cv(data: CVData, output_dir: Path) -> list[Path]:
     for section_key, template_name, output_name, context in files_to_generate:
         if section_key in data.skipped_sections:
             continue
+        # Auto-skip misc section when it has no entries
+        if section_key == "misc" and not data.misc:
+            data.skipped_sections.add("misc")
+            continue
         output_path = output_dir / output_name
         _backup(output_path)
         template = env.get_template(template_name)

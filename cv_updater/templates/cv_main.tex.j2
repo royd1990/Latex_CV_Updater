@@ -17,7 +17,13 @@
 <% endif %>
 
 \ifxetexorluatex
-  \usepackage[p,osf,swashQ]{cochineal}
+  \setmainfont{Cochineal-Roman.otf}[
+    BoldFont       = Cochineal-Bold.otf,
+    ItalicFont     = Cochineal-Italic.otf,
+    BoldItalicFont = Cochineal-BoldItalic.otf,
+    Numbers        = OldStyle,
+    Ligatures      = TeX
+  ]
   \usepackage[medium,bold]{cabin}
   \usepackage[varqu,varl,scale=0.9]{zi4}
 \else
@@ -27,7 +33,7 @@
   \usepackage[varqu,varl,scale=0.9]{zi4}
 \fi
 
-<% if prefix_marker %>% Custom prefix marker (overrides \faBookmark default)
+<% if prefix_marker is not none %>% Custom prefix marker (overrides \faBookmark default)
 \prefixmarker{<< prefix_marker >>}
 <% endif %>
 

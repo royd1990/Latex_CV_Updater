@@ -358,7 +358,7 @@ _ABOUT_ACTIONS = [
 ]
 
 
-def _edit_personal_info(existing: PersonalInfo) -> PersonalInfo | None:
+def _edit_personal_info(existing: PersonalInfo, current_prefix_marker: str = "") -> PersonalInfo | None:
     name = _ask(questionary.text, "Full name:", default=existing.name)
     if name is None:
         return None
@@ -391,11 +391,21 @@ def _edit_personal_info(existing: PersonalInfo) -> PersonalInfo | None:
             default=existing.photo or "photo",
         ) or ""
 
-    prefix_marker = _ask(
-        questionary.text,
-        "Prefix marker (leave blank for default \\faBookmark, e.g. $\\cdot$):",
-        default="",
-    ) or ""
+    prefix_marker_input = _ask(
+        questionary.select,
+        "Prefix marker style:",
+        choices=["Default (bookmark icon)", "No marker", "Custom"],
+    )
+    if prefix_marker_input == "No marker":
+        prefix_marker = ""
+    elif prefix_marker_input == "Custom":
+        prefix_marker = _ask(
+            questionary.text,
+            "Custom prefix marker (e.g. $\\cdot$):",
+            default=current_prefix_marker or "",
+        ) or ""
+    else:
+        prefix_marker = None
 
     return PersonalInfo(
         name=name,
@@ -417,7 +427,7 @@ def _update_mode(cv_dir: Path) -> CVData | None:
     _section_rule("Personal Info")
     _display_personal(data.personal)
     if _ask(questionary.confirm, "Edit personal info?", default=False):
-        result = _edit_personal_info(data.personal)
+        result = _edit_personal_info(data.personal, data.prefix_marker)
         if result is None:
             return None
         data.personal, data.prefix_marker = result
@@ -475,7 +485,7 @@ def _update_mode(cv_dir: Path) -> CVData | None:
                 _section_rule("Personal Info")
                 _display_personal(data.personal)
                 if _ask(questionary.confirm, "Edit personal info?", default=False):
-                    result = _edit_personal_info(data.personal)
+                    result = _edit_personal_info(data.personal, data.prefix_marker)
                     if result is None:
                         return None
                     data.personal, data.prefix_marker = result
@@ -832,7 +842,7 @@ def _edit_custom_entry(existing: CustomEntry | None) -> CustomEntry | None:
 
     return CustomEntry(
         label=escape_latex(label) if "\\" not in label else label,
-        content=content,
+        content=escape_latex(content) if "\\" not in content else content,
         subrubric=escape_latex(subrubric) if subrubric and "\\" not in subrubric else subrubric,
     )
 
@@ -1078,11 +1088,21 @@ def _collect_personal_info():
             default="photo",
         ) or "photo"
 
-    prefix_marker = _ask(
-        questionary.text,
-        "Prefix marker (blank = default \\faBookmark, e.g. $\\cdot$ for a dot):",
-        default="",
-    ) or ""
+    prefix_marker_input = _ask(
+        questionary.select,
+        "Prefix marker style:",
+        choices=["Default (bookmark icon)", "No marker", "Custom"],
+    )
+    if prefix_marker_input == "No marker":
+        prefix_marker = ""
+    elif prefix_marker_input == "Custom":
+        prefix_marker = _ask(
+            questionary.text,
+            "Custom prefix marker (e.g. $\\cdot$):",
+            default="",
+        ) or ""
+    else:
+        prefix_marker = None
 
     if any(v is None for v in [name, email]):
         return None

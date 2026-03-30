@@ -53,6 +53,7 @@ def parse_cv(cv_dir: Path) -> CVData:
         main_text = main_path.read_text()
         data.personal = parse_personal_info(main_text)
         data.section_order = _parse_section_order(main_text, data)
+        data.prefix_marker = _parse_prefix_marker(main_text)
 
     # Detect referee mode
     referee_path = cv_dir / "referee.tex"
@@ -86,6 +87,16 @@ def _parse_section_order(main_text: str, data: CVData) -> list[str]:
             order.append(key)
 
     return order
+
+
+def _parse_prefix_marker(main_text: str) -> str | None:
+    """Extract custom prefix marker from \\prefixmarker{...} if present.
+    Returns None if not found (default bookmark), or the marker string (possibly empty for no marker).
+    """
+    m = re.search(r"\\prefixmarker\{([^}]*)\}", main_text)
+    if m:
+        return m.group(1).strip()
+    return None
 
 
 def _parse_date_range(date_str: str) -> tuple[str, str]:
@@ -159,7 +170,7 @@ def parse_education(text: str) -> list[EducationEntry]:
         if thesis_match:
             thesis_title = thesis_match.group(1)
 
-        # Parse \textbf{Degree, Institution,} possibly with specialization
+        # Parse \textbf{Degree, Institution} possibly with specialization
         title_match = re.match(r"\\textbf\{([^}]+)\}", content)
         degree = ""
         institution = ""
@@ -173,17 +184,24 @@ def parse_education(text: str) -> list[EducationEntry]:
             if len(bold_parts) > 1:
                 institution = ", ".join(bold_parts[1:])
 
-            # Check for specialization after the bold part
             after_bold = content[title_match.end():].strip()
-            # Remove \par and thesis line
-            after_bold = re.sub(r"\\par\s*Thesis title:.*", "", after_bold, flags=re.DOTALL)
-            after_bold = re.sub(r"\\par\s*$", "", after_bold).strip()
-            if after_bold:
-                spl_match = re.match(r"Spl\.?\s*in\s*(.*?)(?:\\par|$)", after_bold)
-                if spl_match:
-                    specialization = spl_match.group(1).strip().rstrip(".")
-                elif not after_bold.startswith("\\"):
-                    specialization = after_bold.strip().rstrip(".")
+
+            # New format: \par Specialization: \emph{...}
+            spl_emph_match = re.search(r"\\par\s*Specialization:\s*\\emph\{([^}]+)\}", after_bold)
+            if spl_emph_match:
+                specialization = spl_emph_match.group(1).strip()
+            else:
+                # Old format: Spl. in <text> (inline after bold)
+                # Remove \par and thesis line first
+                check_text = re.sub(r"\\par\s*Thesis title:.*", "", after_bold, flags=re.DOTALL)
+                check_text = re.sub(r"\\par\s*Specialization:.*", "", check_text, flags=re.DOTALL)
+                check_text = re.sub(r"\\par\s*$", "", check_text).strip()
+                if check_text:
+                    spl_match = re.match(r"Spl\.?\s*in\s*(.*?)(?:\\par|$)", check_text)
+                    if spl_match:
+                        specialization = spl_match.group(1).strip().rstrip(".")
+                    elif not check_text.startswith("\\"):
+                        specialization = check_text.strip().rstrip(".")
 
         entries.append(EducationEntry(
             start_year=start,
@@ -220,28 +238,35 @@ def parse_project_highlights(text: str) -> list[ProjectEntry]:
 
         start, end = _parse_date_range(date_str)
 
-        # Parse \textbf{Title}
+        # Parse title and URL — supports both formats:
+        # New: \href{URL}{\textbf{Title}}
+        # Old: \textbf{Title} (\href{URL}{\texttt{url}})
         title = ""
-        title_match = re.match(r"\\textbf\{([^}]+)\}", content)
-        if title_match:
-            title = title_match.group(1).strip()
-            rest = content[title_match.end():]
-        else:
-            rest = content
-
-        # Extract URL if present
         url = ""
-        url_match = re.search(r"\\href\{([^}]+)\}", rest)
-        if url_match:
-            url = url_match.group(1).strip()
+        href_bold_match = re.match(r"\\href\{([^}]+)\}\{\\textbf\{([^}]+)\}\}", content)
+        if href_bold_match:
+            url = href_bold_match.group(1).strip()
+            title = href_bold_match.group(2).strip()
+            rest = content[href_bold_match.end():]
+        else:
+            title_match = re.match(r"\\textbf\{([^}]+)\}", content)
+            if title_match:
+                title = title_match.group(1).strip()
+                rest = content[title_match.end():]
+            else:
+                rest = content
+            # Extract URL from old format
+            url_match = re.search(r"\\href\{([^}]+)\}", rest)
+            if url_match:
+                url = url_match.group(1).strip()
 
-        # Extract description from \par <text> (not starting with \textit)
+        # Extract description from \par <text> (not starting with \textit or \smallskip)
         description = ""
-        desc_match = re.search(r"\\par\s+(?!\\textit)(.*?)(?=\\par|$)", rest, re.DOTALL)
+        desc_match = re.search(r"\\par\s+(?!\\textit|\\smallskip)(.*?)(?=\\par|$)", rest, re.DOTALL)
         if desc_match:
             description = desc_match.group(1).strip()
 
-        # Extract technologies from \par \textit{Technologies:} ...
+        # Extract technologies from \par[\smallskip] \textit{Technologies:} ...
         technologies = ""
         tech_match = re.search(r"\\textit\{Technologies:\}\s*(.*?)(?=\\par|$)", rest, re.DOTALL)
         if tech_match:

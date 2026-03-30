@@ -1,9 +1,9 @@
 <% if entries %>\begin{rubric}{Project Highlights}
 <% for entry in entries -%>
 \entry*[<< entry.date_range >>]%
-	\textbf{<< entry.title >>}<% if entry.url %> (\href{<< entry.url >>}{\texttt{url}})<% endif %>
+<% if entry.url %>	\href{<< entry.url >>}{\textbf{<< entry.title >>}}<% else %>	\textbf{<< entry.title >>}<% endif %>
 <% if entry.description %>	\par << entry.description >>
-<% endif %><% if entry.technologies %>	\par \textit{Technologies:} << entry.technologies >>
+<% endif %><% if entry.technologies %>	\par\smallskip \textit{Technologies:} << entry.technologies >>
 <% endif %>%
 <% endfor -%>
 \end{rubric}

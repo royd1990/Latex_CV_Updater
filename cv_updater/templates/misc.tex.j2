@@ -1,4 +1,4 @@
-\begin{rubric}{Miscellaneous Experience}
+<% if entries %>\begin{rubric}{Miscellaneous Experience}
 <% set current_sub = namespace(value='') -%>
 <% for entry in entries -%>
 <% if entry.subrubric != current_sub.value -%>
@@ -9,3 +9,4 @@
 
 <% endfor %>
 \end{rubric}
+<% endif %>
