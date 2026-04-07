@@ -1,10 +1,11 @@
 <% if entries %>\begin{rubric}{Project Highlights}
 <% for entry in entries -%>
 \entry*[<< entry.date_range >>]%
-<% if entry.url %>	\href{<< entry.url >>}{\textbf{<< entry.title >>}}<% else %>	\textbf{<< entry.title >>}<% endif %>
-<% if entry.description %>	\par << entry.description >>
-<% endif %><% if entry.technologies %>	\par\smallskip \textit{Technologies:} << entry.technologies >>
+<% if entry.url %>	\href{<< entry.url >>}{\textbf{<< entry.title | escape_latex >>}}<% else %>	\textbf{<< entry.title | escape_latex >>}<% endif %>
+<% if entry.description %>	\par << entry.description | escape_latex >>
+<% endif %><% if entry.technologies %>	\par\smallskip \textit{Technologies:} << entry.technologies | escape_latex >>
 <% endif %>%
 <% endfor -%>
 \end{rubric}
+<% else %>% No project highlight entries
 <% endif %>

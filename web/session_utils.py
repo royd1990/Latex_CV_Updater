@@ -80,7 +80,7 @@ def dict_to_cvdata(d: dict) -> CVData:
         skipped_sections=set(d.get("skipped_sections", [])),
         custom_sections=custom_sections,
         section_order=section_order,
-        prefix_marker=d.get("prefix_marker", ""),
+        prefix_marker=d.get("prefix_marker"),
     )
 
 

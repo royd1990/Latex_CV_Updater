@@ -45,6 +45,14 @@
         {% endif %}
       </div>
 
+      <div class="download-card">
+        <div class="download-card-title">[ Debug ]</div>
+        <div class="download-card-desc">View generated .tex files to diagnose compilation errors.</div>
+        <form method="post" action="{{ url_for('download_debug') }}">
+          <button type="submit" class="btn full-width">? View .tex Files</button>
+        </form>
+      </div>
+
     </div>
 
     <div id="compile-status" style="display:none; margin-top:12px; font-size:12px; color:var(--amber);">

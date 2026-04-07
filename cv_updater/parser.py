@@ -7,6 +7,8 @@ from pathlib import Path
 
 from .models import (
     CVData,
+    CustomEntry,
+    CustomSection,
     DEFAULT_SECTION_ORDER,
     EducationEntry,
     EmploymentEntry,
@@ -67,6 +69,18 @@ def parse_cv(cv_dir: Path) -> CVData:
     referee_full_path = cv_dir / "referee-full.tex"
     if referee_full_path.exists():
         data.referees = parse_referees(referee_full_path.read_text())
+
+    # Parse custom sections: any .tex in section_order that isn't a built-in section
+    _BUILTIN_SECTIONS = set(DEFAULT_SECTION_ORDER)
+    _BUILTIN_FILES = {"cv-llt", "referee-full", "settings", "own-bib"}
+    for key in data.section_order:
+        if key in _BUILTIN_SECTIONS or key in _BUILTIN_FILES:
+            continue
+        tex_path = cv_dir / f"{key}.tex"
+        if tex_path.exists():
+            section = parse_custom_section(key, tex_path.read_text())
+            if section:
+                data.custom_sections.append(section)
 
     return data
 
@@ -410,3 +424,48 @@ def parse_referees(text: str) -> list[RefereeEntry]:
             email=email,
         ))
     return entries
+
+
+def parse_custom_section(filename: str, text: str) -> CustomSection | None:
+    """Parse a custom section .tex file into a CustomSection object.
+
+    Custom sections use the same format as the custom_section.tex.j2 template:
+      \\begin{rubric}{Title}
+      [\\subrubric{Sub}]
+      \\entry*[Label] Content
+      \\end{rubric}
+    """
+    # Extract section title from \begin{rubric}{...}
+    title_match = re.search(r"\\begin\{rubric\}\{([^}]+)\}", text)
+    if not title_match:
+        return None
+    title = title_match.group(1).strip()
+
+    entries: list[CustomEntry] = []
+    current_subrubric = ""
+
+    lines = text.split("\n")
+    subrubric_pattern = r"\\subrubric\{([^}]+)\}"
+    entry_pattern = r"\\entry\*\[([^\]]+)\]\s*(.*)"
+
+    for line in lines:
+        sub_match = re.search(subrubric_pattern, line)
+        if sub_match:
+            current_subrubric = sub_match.group(1).strip()
+            continue
+
+        entry_match = re.search(entry_pattern, line)
+        if entry_match:
+            label = entry_match.group(1).strip()
+            content = entry_match.group(2).strip()
+            entries.append(CustomEntry(
+                label=label,
+                content=content,
+                subrubric=current_subrubric,
+            ))
+
+    return CustomSection(
+        title=title,
+        filename=filename,
+        entries=entries,
+    )

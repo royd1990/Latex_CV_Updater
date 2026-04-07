@@ -26,29 +26,35 @@ def _get_env() -> Environment:
         comment_end_string="#>",
         keep_trailing_newline=True,
     )
+    env.filters["escape_latex"] = escape_latex
     return env
 
 
 def escape_latex(text: str) -> str:
-    """Escape LaTeX special characters in user input."""
+    """Escape LaTeX special characters, avoiding double-escaping.
+
+    Handles both fresh user input and content parsed from existing .tex files
+    that may already contain LaTeX commands or escaped characters.
+    """
     if not text:
         return text
-    # Don't escape if the text already contains LaTeX commands
-    if "\\" in text and any(cmd in text for cmd in ["\\textbf", "\\emph", "\\par", "\\cdots"]):
-        return text
-    replacements = [
+    # Replace each special character only when NOT already preceded by a backslash.
+    # Uses a negative lookbehind (?<!\\) to skip already-escaped characters.
+    for char, replacement in [
         ("&", r"\&"),
         ("%", r"\%"),
-        ("$", r"\$"),
+        (r"$", r"\$"),
         ("#", r"\#"),
         ("_", r"\_"),
-        ("{", r"\{"),
-        ("}", r"\}"),
-        ("~", r"\textasciitilde{}"),
-        ("^", r"\textasciicircum{}"),
-    ]
-    for old, new in replacements:
-        text = text.replace(old, new)
+    ]:
+        text = re.sub(r"(?<!\\)" + re.escape(char), replacement, text)
+    # Only escape braces if the text contains no LaTeX commands.
+    # Content with commands like \textbf{...} or \begin{...} needs braces intact.
+    if not re.search(r"\\[a-zA-Z]", text):
+        text = re.sub(r"(?<!\\)\{", r"\\{", text)
+        text = re.sub(r"(?<!\\)\}", r"\\}", text)
+        text = text.replace("~", r"\textasciitilde{}")
+        text = text.replace("^", r"\textasciicircum{}")
     return text
 
 
@@ -116,10 +122,6 @@ def generate_cv(data: CVData, output_dir: Path) -> list[Path]:
 
     for section_key, template_name, output_name, context in files_to_generate:
         if section_key in data.skipped_sections:
-            continue
-        # Auto-skip misc section when it has no entries
-        if section_key == "misc" and not data.misc:
-            data.skipped_sections.add("misc")
             continue
         output_path = output_dir / output_name
         _backup(output_path)

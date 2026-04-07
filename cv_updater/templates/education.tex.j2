@@ -1,15 +1,17 @@
-\begin{rubric}{Education}
+<% if entries %>\begin{rubric}{Education}
 <% for entry in entries -%>
 \entry*[<< entry.date_range >>]%
-	\textbf{<< entry.degree >>, << entry.institution >>}
+	\textbf{<< entry.degree | escape_latex >>, << entry.institution | escape_latex >>}
 <% if entry.specialization -%>
-	\par Specialization: \emph{<< entry.specialization >>}
+	\par Specialization: \emph{<< entry.specialization | escape_latex >>}
 <% endif -%>
 <% if entry.thesis_title -%>
-	\par Thesis title: \emph{<< entry.thesis_title >>}
+	\par Thesis title: \emph{<< entry.thesis_title | escape_latex >>}
 <% endif -%>
 <% if not loop.last -%>
 %
 <% endif -%>
 <% endfor -%>
 \end{rubric}
+<% else %>% No education entries
+<% endif %>

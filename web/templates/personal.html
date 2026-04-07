@@ -82,13 +82,35 @@
   <div class="panel" data-title="CV Style">
     <div class="panel-body">
       <div class="form-group">
-        <label for="prefix_marker">Prefix Marker <span class="text-muted">(replaces the default bookmark icon)</span></label>
-        <input type="text" id="prefix_marker" name="prefix_marker"
-               value="{{ cv.prefix_marker }}"
-               placeholder="leave blank to use default (\faBookmark)">
-        <span class="text-muted" style="font-size:10px; margin-top:4px; display:block;">
-          Suggestions: <code>$\cdot$</code> &nbsp;·&nbsp; <code>\textendash</code> &nbsp;·&nbsp; <code>$\triangleright$</code> &nbsp;·&nbsp; <code>$\diamond$</code>
-        </span>
+        <label>Prefix Marker <span class="text-muted">(icon shown before each entry)</span></label>
+        <div style="display:flex; gap:12px; margin:6px 0 10px;">
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:12px; text-transform:none; color:var(--fg);">
+            <input type="radio" name="prefix_mode" value="default"
+                   {{ 'checked' if cv.prefix_marker is none }}
+                   onchange="togglePrefixCustom()" style="accent-color:var(--amber);">
+            Default (bookmark)
+          </label>
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:12px; text-transform:none; color:var(--fg);">
+            <input type="radio" name="prefix_mode" value="none"
+                   {{ 'checked' if cv.prefix_marker is not none and cv.prefix_marker == '' }}
+                   onchange="togglePrefixCustom()" style="accent-color:var(--amber);">
+            No marker
+          </label>
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:12px; text-transform:none; color:var(--fg);">
+            <input type="radio" name="prefix_mode" value="custom"
+                   {{ 'checked' if cv.prefix_marker is not none and cv.prefix_marker != '' }}
+                   onchange="togglePrefixCustom()" style="accent-color:var(--amber);">
+            Custom
+          </label>
+        </div>
+        <div id="prefix-custom-field" style="{{ '' if cv.prefix_marker is not none and cv.prefix_marker != '' else 'display:none;' }}">
+          <input type="text" id="prefix_marker_input" name="prefix_marker_input"
+                 value="{{ cv.prefix_marker if cv.prefix_marker else '' }}"
+                 placeholder="e.g. $\cdot$">
+          <span class="text-muted" style="font-size:10px; margin-top:4px; display:block;">
+            Suggestions: <code>$\cdot$</code> &nbsp;·&nbsp; <code>\textendash</code> &nbsp;·&nbsp; <code>$\triangleright$</code> &nbsp;·&nbsp; <code>$\diamond$</code>
+          </span>
+        </div>
       </div>
     </div>
   </div>
@@ -116,6 +138,10 @@
     const fields = document.getElementById('photo-fields');
     fields.style.opacity = cb.checked ? '0.35' : '';
     fields.style.pointerEvents = cb.checked ? 'none' : '';
+  }
+  function togglePrefixCustom() {
+    const mode = document.querySelector('input[name="prefix_mode"]:checked').value;
+    document.getElementById('prefix-custom-field').style.display = mode === 'custom' ? '' : 'none';
   }
 </script>
 {% endblock %}

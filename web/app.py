@@ -204,8 +204,87 @@ def start_create():
 
 
 # ---------------------------------------------------------------------------
-# Start: upload
+# Start: upload (folder path or individual files)
 # ---------------------------------------------------------------------------
+
+# Default .tex files the parser expects
+_DEFAULT_TEX_FILES = {
+    "cv-llt.tex": "Main file (personal info, section order)",
+    "about.tex": "About section",
+    "employment.tex": "Employment section",
+    "education.tex": "Education section",
+    "skills.tex": "Skills / Expertise section",
+    "project_highlights.tex": "Project Highlights section",
+    "misc.tex": "Miscellaneous section",
+    "referee.tex": "Referee mode file",
+    "referee-full.tex": "Full referee list",
+}
+
+
+@app.route("/api/scan-folder", methods=["POST"])
+def api_scan_folder():
+    """Scan a folder path and return which default .tex files exist."""
+    folder_path = request.json.get("path", "").strip() if request.is_json else ""
+    if not folder_path:
+        return jsonify({"error": "No path provided"}), 400
+
+    folder = Path(folder_path).expanduser().resolve()
+    if not folder.is_dir():
+        return jsonify({"error": f"Not a valid directory: {folder}"}), 400
+
+    # Read cv-llt.tex to discover custom sections via \makerubric{}
+    custom_sections: dict[str, str] = {}  # filename (no .tex) -> rubric title
+    main_path = folder / "cv-llt.tex"
+    _builtin_keys = {Path(f).stem for f in _DEFAULT_TEX_FILES}  # e.g. {"cv-llt", "about", ...}
+    if main_path.is_file():
+        import re as _re
+        main_text = main_path.read_text()
+        for m in _re.finditer(r"\\makerubric\{([^}]+)\}", main_text):
+            key = m.group(1).strip()
+            if key not in _builtin_keys and key not in {"referee-full"}:
+                # Try to read the rubric title from the .tex file
+                tex_path = folder / f"{key}.tex"
+                title = key.replace("_", " ").title()
+                if tex_path.is_file():
+                    title_m = _re.search(r"\\begin\{rubric\}\{([^}]+)\}", tex_path.read_text())
+                    if title_m:
+                        title = title_m.group(1).strip()
+                custom_sections[key] = title
+
+    found = {}
+    missing = {}
+    for filename, description in _DEFAULT_TEX_FILES.items():
+        filepath = folder / filename
+        if filepath.is_file():
+            found[filename] = description
+        else:
+            missing[filename] = description
+
+    # Custom section files: found vs missing
+    custom_found = {}
+    custom_missing = {}
+    for key, title in custom_sections.items():
+        tex_name = f"{key}.tex"
+        if (folder / tex_name).is_file():
+            custom_found[tex_name] = f'Custom section: "{title}"'
+        else:
+            custom_missing[tex_name] = f'Custom section: "{title}" (referenced in cv-llt.tex)'
+
+    # Extra .tex files not in defaults and not a known custom section
+    all_known = set(_DEFAULT_TEX_FILES) | {f"{k}.tex" for k in custom_sections}
+    extra = []
+    for f in sorted(folder.glob("*.tex")):
+        if f.name not in all_known:
+            extra.append(f.name)
+
+    return jsonify({
+        "path": str(folder),
+        "found": found,
+        "missing": missing,
+        "custom_found": custom_found,
+        "custom_missing": custom_missing,
+        "extra": extra,
+    })
 
 
 @app.route("/start/upload", methods=["GET", "POST"])
@@ -216,49 +295,89 @@ def start_upload():
             page_title="Upload CV Files",
             wizard_steps=WIZARD_STEPS,
             step_labels=STEP_LABELS,
+            default_tex_files=_DEFAULT_TEX_FILES,
         )
 
-    # POST: save files to tmpdir, parse, store in session
-    upload_dir = Path(tempfile.mkdtemp(prefix="cv_web_"))
-    saved_any = False
+    # POST: handle folder path or individual file uploads
+    folder_path = request.form.get("folder_path", "").strip()
 
-    file_fields = [
-        "cv_main",
-        "employment",
-        "education",
-        "skills",
-        "misc",
-        "referee",
-        "referee_full",
-    ]
-    field_to_filename = {
-        "cv_main": "cv-llt.tex",
-        "employment": "employment.tex",
-        "education": "education.tex",
-        "skills": "skills.tex",
-        "misc": "misc.tex",
-        "referee": "referee.tex",
-        "referee_full": "referee-full.tex",
-    }
+    if folder_path:
+        # ── Folder-path mode ──
+        folder = Path(folder_path).expanduser().resolve()
+        if not folder.is_dir():
+            flash(f"Not a valid directory: {folder}", "error")
+            return redirect(url_for("start_upload"))
 
-    for field in file_fields:
-        f = request.files.get(field)
-        if f and f.filename:
-            dest = upload_dir / field_to_filename[field]
-            f.save(str(dest))
-            saved_any = True
+        # Copy found .tex files to a temp dir for parsing
+        upload_dir = Path(tempfile.mkdtemp(prefix="cv_web_"))
+        saved_any = False
+        for filename in _DEFAULT_TEX_FILES:
+            src = folder / filename
+            if src.is_file():
+                shutil.copy2(src, upload_dir / filename)
+                saved_any = True
 
-    # Also accept about.tex and project_highlights.tex if uploaded
-    for extra_field, extra_name in [("about", "about.tex"), ("project_highlights", "project_highlights.tex")]:
-        f = request.files.get(extra_field)
-        if f and f.filename:
-            dest = upload_dir / extra_name
-            f.save(str(dest))
-            saved_any = True
+        # Also copy any extra .tex files (custom sections)
+        for src in folder.glob("*.tex"):
+            dst = upload_dir / src.name
+            if not dst.exists():
+                shutil.copy2(src, dst)
+                saved_any = True
 
-    if not saved_any:
-        flash("No files uploaded. Please select at least one .tex file.", "error")
-        return redirect(url_for("start_upload"))
+        # Copy support files (settings.sty, own-bib.bib, images)
+        copy_support_files(folder, upload_dir)
+
+        # Also handle individual file overrides for missing files
+        file_fields = {
+            "cv_main": "cv-llt.tex",
+            "employment": "employment.tex",
+            "education": "education.tex",
+            "skills": "skills.tex",
+            "project_highlights": "project_highlights.tex",
+            "about": "about.tex",
+            "misc": "misc.tex",
+            "referee": "referee.tex",
+            "referee_full": "referee-full.tex",
+        }
+        for field, tex_name in file_fields.items():
+            f = request.files.get(field)
+            if f and f.filename:
+                dest = upload_dir / tex_name
+                f.save(str(dest))
+                saved_any = True
+
+        if not saved_any:
+            shutil.rmtree(upload_dir, ignore_errors=True)
+            flash("No .tex files found in the folder.", "error")
+            return redirect(url_for("start_upload"))
+
+    else:
+        # ── Individual file upload mode (fallback) ──
+        upload_dir = Path(tempfile.mkdtemp(prefix="cv_web_"))
+        saved_any = False
+
+        file_fields = {
+            "cv_main": "cv-llt.tex",
+            "employment": "employment.tex",
+            "education": "education.tex",
+            "skills": "skills.tex",
+            "project_highlights": "project_highlights.tex",
+            "about": "about.tex",
+            "misc": "misc.tex",
+            "referee": "referee.tex",
+            "referee_full": "referee-full.tex",
+        }
+        for field, tex_name in file_fields.items():
+            f = request.files.get(field)
+            if f and f.filename:
+                dest = upload_dir / tex_name
+                f.save(str(dest))
+                saved_any = True
+
+        if not saved_any:
+            shutil.rmtree(upload_dir, ignore_errors=True)
+            flash("No files provided. Enter a folder path or upload individual files.", "error")
+            return redirect(url_for("start_upload"))
 
     try:
         data = parse_cv(upload_dir)
@@ -313,7 +432,13 @@ def edit_personal():
             photo=photo_filename,
             skip_photo=skip_photo,
         )
-        cv.prefix_marker = request.form.get("prefix_marker", "").strip()
+        prefix_mode = request.form.get("prefix_mode", "default")
+        if prefix_mode == "none":
+            cv.prefix_marker = ""
+        elif prefix_mode == "custom":
+            cv.prefix_marker = request.form.get("prefix_marker_input", "").strip() or ""
+        else:
+            cv.prefix_marker = None
         save_cv(session, cv)
         _mark_visited("personal")
         if action == "next":
@@ -885,6 +1010,38 @@ def download_page():
 # ---------------------------------------------------------------------------
 
 
+@app.route("/download/debug", methods=["POST"])
+def download_debug():
+    """Show generated .tex files for debugging compilation errors."""
+    cv = _require_cv()
+    if cv is None:
+        return redirect(url_for("index"))
+
+    out_dir = Path(tempfile.mkdtemp(prefix="cv_debug_"))
+    try:
+        generate_main(cv, out_dir)
+        generate_cv(cv, out_dir)
+
+        files = {}
+        for f in sorted(out_dir.iterdir()):
+            if f.suffix == ".tex":
+                files[f.name] = f.read_text()
+        return render_template(
+            "debug.html",
+            page_title="Debug: Generated Files",
+            files=files,
+            wizard_steps=WIZARD_STEPS,
+            step_labels=STEP_LABELS,
+            current_step="download",
+            visited=session.get("visited", []),
+        )
+    except Exception as exc:
+        flash(f"Error generating files: {exc}", "error")
+        return redirect(url_for("download_page"))
+    finally:
+        shutil.rmtree(out_dir, ignore_errors=True)
+
+
 @app.route("/download/zip", methods=["POST"])
 def download_zip():
     cv = _require_cv()
@@ -941,6 +1098,14 @@ def download_pdf():
 
         success, message = compile_cv(main_tex)
         if not success:
+            # Dump generated .tex files for debugging
+            debug_lines = []
+            for f in sorted(out_dir.iterdir()):
+                if f.suffix == ".tex":
+                    content = f.read_text()
+                    debug_lines.append(f"=== {f.name} ===\n{content}")
+            debug_dump = "\n".join(debug_lines)
+            app.logger.error("LaTeX compilation failed.\n%s\n\nGenerated files:\n%s", message, debug_dump)
             shutil.rmtree(out_dir, ignore_errors=True)
             flash(f"Compilation failed: {message}", "error")
             return redirect(url_for("download_page"))

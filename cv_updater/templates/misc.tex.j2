@@ -5,8 +5,9 @@
 <% set current_sub.value = entry.subrubric -%>
 \subrubric{<< entry.subrubric >>}
 <% endif -%>
-\entry*[<< entry.year >>] \textbf{<< entry.title >>}<% if entry.description %>, << entry.description >>.<% endif %>
+\entry*[<< entry.year >>] \textbf{<< entry.title | escape_latex >>}<% if entry.description %>, << entry.description | escape_latex >>.<% endif %>
 
 <% endfor %>
 \end{rubric}
+<% else %>% No miscellaneous entries
 <% endif %>
