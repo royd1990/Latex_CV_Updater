@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ PROJECT HIGHLIGHTS ────────────────────────────────┐</pre>
+
+<form method="post">
+
+  <div class="panel" data-title="Section Options">
+    <div class="panel-body">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; text-transform:none; color:var(--fg);">
+        <input type="checkbox" name="skip_projects" id="skip_projects" value="1"
+               {{ 'checked' if 'project_highlights' in cv.skipped_sections else '' }}
+               onchange="toggleProjectFields(this)"
+               style="accent-color:var(--amber); width:14px; height:14px;">
+        <span>Skip this section — omit Project Highlights from the CV entirely</span>
+      </label>
+    </div>
+  </div>
+
+  <div id="project-fields" style="{{ 'opacity:0.35; pointer-events:none;' if 'project_highlights' in cv.skipped_sections else '' }}">
+
+  <!-- Hidden template row -->
+  <div class="entry-row template" id="project-template">
+    <div class="entry-row-header">
+      <span class="entry-idx">#</span>
+      <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+    </div>
+    <div class="form-group">
+      <label>Project Title</label>
+      <input type="text" name="projects[__IDX__][title]" placeholder="My Awesome Project">
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+      <div class="form-group">
+        <label>Start Year</label>
+        <div class="input-with-btn">
+          <input type="text" name="projects[__IDX__][start_year]" placeholder="2023">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>End Year</label>
+        <div class="input-with-btn">
+          <input type="text" name="projects[__IDX__][end_year]" placeholder="2024">
+          <button type="button" class="btn btn-sm btn-primary" onclick="setPresent(this)" title="Set to present">∞</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="projects[__IDX__][description]" rows="2"
+                placeholder="Brief description of the project and your role."></textarea>
+    </div>
+    <div class="form-row" style="grid-template-columns: 2fr 1fr;">
+      <div class="form-group">
+        <label>Technologies <span class="text-muted">(optional)</span></label>
+        <input type="text" name="projects[__IDX__][technologies]"
+               placeholder="Python, Docker, FastAPI">
+      </div>
+      <div class="form-group">
+        <label>URL <span class="text-muted">(optional)</span></label>
+        <input type="url" name="projects[__IDX__][url]"
+               placeholder="https://github.com/...">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" data-title="Project Entries">
+    <div class="panel-body">
+      <div id="project-list" class="entry-list">
+        {% for entry in cv.project_highlights %}
+        <div class="entry-row">
+          <div class="entry-row-header">
+            <span class="entry-idx">#{{ loop.index }}</span>
+            <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+          </div>
+          <div class="form-group">
+            <label>Project Title</label>
+            <input type="text" name="projects[{{ loop.index0 }}][title]"
+                   value="{{ entry.title }}" placeholder="My Awesome Project">
+          </div>
+          <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+              <label>Start Year</label>
+              <div class="input-with-btn">
+                <input type="text" name="projects[{{ loop.index0 }}][start_year]"
+                       value="{{ entry.start_year }}" placeholder="2023">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>End Year</label>
+              <div class="input-with-btn">
+                <input type="text" name="projects[{{ loop.index0 }}][end_year]"
+                       value="{{ entry.end_year }}" placeholder="2024">
+                <button type="button" class="btn btn-sm btn-primary" onclick="setPresent(this)" title="Set to present">∞</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea name="projects[{{ loop.index0 }}][description]" rows="2"
+                      placeholder="Brief description.">{{ entry.description }}</textarea>
+          </div>
+          <div class="form-row" style="grid-template-columns: 2fr 1fr;">
+            <div class="form-group">
+              <label>Technologies <span class="text-muted">(optional)</span></label>
+              <input type="text" name="projects[{{ loop.index0 }}][technologies]"
+                     value="{{ entry.technologies }}" placeholder="Python, Docker">
+            </div>
+            <div class="form-group">
+              <label>URL <span class="text-muted">(optional)</span></label>
+              <input type="url" name="projects[{{ loop.index0 }}][url]"
+                     value="{{ entry.url }}" placeholder="https://...">
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="add-row-btn">
+        <button type="button" class="btn btn-primary btn-sm" id="add-project">+ Add Project</button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- #project-fields -->
+
+  <div class="wizard-nav">
+    <button type="submit" name="action" value="prev" class="btn">← Skills</button>
+    <div class="nav-right">
+      <button type="submit" name="action" value="save" class="btn btn-amber">Save</button>
+      <button type="submit" name="action" value="next" class="btn btn-success">Misc →</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Highlight key projects with dates, description, and technologies used.</p>
+<p class="info-tip">Use the <strong>∞</strong> button to mark an ongoing project as current.</p>
+<p class="info-tip"><strong>Technologies</strong> appears as an italicised line below the description.</p>
+<p class="info-tip">Add a <strong>URL</strong> to link to the project repository or demo.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const em = new EntryManager('project-list', 'project-template', 'projects');
+  document.getElementById('add-project').addEventListener('click', () => em.addRow());
+
+  function toggleProjectFields(cb) {
+    const fields = document.getElementById('project-fields');
+    fields.style.opacity = cb.checked ? '0.35' : '';
+    fields.style.pointerEvents = cb.checked ? 'none' : '';
+  }
+</script>
+{% endblock %}

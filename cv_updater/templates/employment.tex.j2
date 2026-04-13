@@ -1,7 +1,9 @@
-\begin{rubric}{Employment}
+<% if entries %>\begin{rubric}{Employment}
 <% for entry in entries -%>
 \entry*[<< entry.date_range >>]%
-	\textbf{<< entry.title >>,} << entry.organization >><% if entry.location %>, << entry.location >><% endif %>
+	\textbf{<< entry.title | escape_latex >>,} << entry.organization | escape_latex >><% if entry.location %>, << entry.location | escape_latex >><% endif %>
 %
 <% endfor -%>
 \end{rubric}
+<% else %>% No employment entries
+<% endif %>

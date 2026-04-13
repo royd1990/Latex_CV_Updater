@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ UPDATE EXISTING CV ───────────────────────────────┐</pre>
+
+<form method="post" enctype="multipart/form-data" id="upload-form">
+
+  <!-- ── Folder path ── -->
+  <div class="panel" data-title="Project Folder">
+    <div class="panel-body">
+      <div class="form-group">
+        <label for="folder_path">Folder Path</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="folder_path" name="folder_path"
+                 placeholder="/path/to/your/cv/folder"
+                 style="flex:1;">
+          <button type="button" class="btn btn-amber" id="scan-btn" onclick="scanFolder()">Scan</button>
+        </div>
+        <span class="text-muted" style="font-size:10px; margin-top:4px; display:block;">
+          Enter the absolute path to your CV project folder. Default-named .tex files will be auto-detected.
+        </span>
+      </div>
+
+      <!-- Scan results -->
+      <div id="scan-results" style="display:none; margin-top:12px;">
+        <div id="scan-found" style="margin-bottom:8px;"></div>
+        <div id="scan-missing"></div>
+        <div id="scan-extra" style="margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Individual file overrides (shown when scan finds missing files, or as fallback) ── -->
+  <div class="panel" data-title="Override / Upload Individual Files" id="files-panel">
+    <div class="panel-body">
+      <p class="text-muted" style="font-size:11px; margin-bottom:10px;">
+        Upload individual .tex files to override scanned results, or use this section if you prefer manual file selection.
+      </p>
+      <div class="upload-section">
+        <label>cv-llt.tex <span class="upload-optional">(main file — personal info)</span></label>
+        <input type="file" name="cv_main" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>about.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="about" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>employment.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="employment" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>education.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="education" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>skills.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="skills" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>project_highlights.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="project_highlights" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>misc.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="misc" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>referee.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="referee" accept=".tex">
+      </div>
+      <div class="upload-section">
+        <label>referee-full.tex <span class="upload-optional">(optional)</span></label>
+        <input type="file" name="referee_full" accept=".tex">
+      </div>
+    </div>
+  </div>
+
+  <div class="wizard-nav">
+    <a href="{{ url_for('index') }}" class="btn">← Back</a>
+    <button type="submit" class="btn btn-success" id="submit-btn">Parse &amp; Continue →</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Load your existing CV for editing.</p>
+<p class="info-tip"><strong>Recommended:</strong> Enter your CV project folder path and click <strong>Scan</strong>. All default-named .tex files will be auto-detected.</p>
+<p class="info-text" style="margin-top:8px;">Expected files:</p>
+{% for filename, desc in default_tex_files.items() %}
+<div class="info-code">{{ filename }}</div>
+{% endfor %}
+<p class="info-text" style="margin-top:8px;">Any extra .tex files (custom sections) in the folder will also be imported.</p>
+<p class="info-tip" style="margin-top:8px;">You can also override missing files using the individual file pickers below the scan results.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function scanFolder() {
+  const pathInput = document.getElementById('folder_path');
+  const path = pathInput.value.trim();
+  if (!path) { alert('Please enter a folder path.'); return; }
+
+  const btn = document.getElementById('scan-btn');
+  btn.textContent = 'Scanning…';
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch('{{ url_for("api_scan_folder") }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({path: path})
+    });
+    const data = await resp.json();
+
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+
+    const resultsDiv = document.getElementById('scan-results');
+    const foundDiv = document.getElementById('scan-found');
+    const missingDiv = document.getElementById('scan-missing');
+    const extraDiv = document.getElementById('scan-extra');
+
+    // Found files (built-in)
+    const foundKeys = Object.keys(data.found);
+    // Custom sections found
+    const customFoundKeys = Object.keys(data.custom_found || {});
+    const allFoundCount = foundKeys.length + customFoundKeys.length;
+
+    let foundHtml = '';
+    if (foundKeys.length > 0) {
+      foundHtml += foundKeys.map(f => '<div style="font-size:11px; color:var(--green); padding:2px 0;">  ✓ ' + f + ' <span class="text-muted">— ' + data.found[f] + '</span></div>').join('');
+    }
+    if (customFoundKeys.length > 0) {
+      foundHtml += customFoundKeys.map(f => '<div style="font-size:11px; color:var(--cyan); padding:2px 0;">  ✓ ' + f + ' <span class="text-muted">— ' + data.custom_found[f] + '</span></div>').join('');
+    }
+    if (allFoundCount > 0) {
+      foundDiv.innerHTML = '<span style="color:var(--green); font-size:12px; font-weight:bold;">FOUND (' + allFoundCount + ')</span>' +
+        '<div style="margin-top:4px;">' + foundHtml + '</div>';
+    } else {
+      foundDiv.innerHTML = '<span style="color:var(--amber); font-size:12px;">No .tex files found in this folder.</span>';
+    }
+
+    // Missing files (built-in + custom)
+    const missingKeys = Object.keys(data.missing);
+    const customMissingKeys = Object.keys(data.custom_missing || {});
+    const allMissingCount = missingKeys.length + customMissingKeys.length;
+
+    let missingHtml = '';
+    if (missingKeys.length > 0) {
+      missingHtml += missingKeys.map(f => '<div style="font-size:11px; color:var(--muted); padding:2px 0;">  ○ ' + f + ' <span class="text-muted">— ' + data.missing[f] + '</span></div>').join('');
+    }
+    if (customMissingKeys.length > 0) {
+      missingHtml += customMissingKeys.map(f => '<div style="font-size:11px; color:var(--amber); padding:2px 0;">  ○ ' + f + ' <span class="text-muted">— ' + data.custom_missing[f] + '</span></div>').join('');
+    }
+    if (allMissingCount > 0) {
+      missingDiv.innerHTML = '<span style="color:var(--amber); font-size:12px; font-weight:bold;">MISSING (' + allMissingCount + ')</span>' +
+        '<div style="margin-top:4px;">' + missingHtml + '</div>';
+    } else {
+      missingDiv.innerHTML = '<span style="color:var(--green); font-size:12px;">All files found!</span>';
+    }
+
+    // Extra .tex files (not referenced by cv-llt.tex at all)
+    if (data.extra && data.extra.length > 0) {
+      extraDiv.innerHTML = '<span style="color:var(--muted); font-size:12px; font-weight:bold;">UNREFERENCED (' + data.extra.length + ')</span>' +
+        '<div style="margin-top:4px;">' +
+        data.extra.map(f => '<div style="font-size:11px; color:var(--muted); padding:2px 0;">  ? ' + f + ' <span class="text-muted">— not in cv-llt.tex section order</span></div>').join('') +
+        '</div>';
+    } else {
+      extraDiv.innerHTML = '';
+    }
+
+    resultsDiv.style.display = '';
+  } catch (err) {
+    alert('Scan failed: ' + err.message);
+  } finally {
+    btn.textContent = 'Scan';
+    btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}

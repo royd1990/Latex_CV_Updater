@@ -7,10 +7,14 @@ from pathlib import Path
 
 from .models import (
     CVData,
+    CustomEntry,
+    CustomSection,
+    DEFAULT_SECTION_ORDER,
     EducationEntry,
     EmploymentEntry,
     MiscEntry,
     PersonalInfo,
+    ProjectEntry,
     RefereeEntry,
     SkillCategory,
 )
@@ -21,6 +25,10 @@ PRESENT_MARKER = r"$\cdots\cdot$"
 def parse_cv(cv_dir: Path) -> CVData:
     """Parse all .tex files in a CV directory into a CVData object."""
     data = CVData()
+
+    about_path = cv_dir / "about.tex"
+    if about_path.exists():
+        data.about = parse_about(about_path.read_text())
 
     employment_path = cv_dir / "employment.tex"
     if employment_path.exists():
@@ -34,13 +42,20 @@ def parse_cv(cv_dir: Path) -> CVData:
     if skills_path.exists():
         data.skills = parse_skills(skills_path.read_text())
 
+    project_highlights_path = cv_dir / "project_highlights.tex"
+    if project_highlights_path.exists():
+        data.project_highlights = parse_project_highlights(project_highlights_path.read_text())
+
     misc_path = cv_dir / "misc.tex"
     if misc_path.exists():
         data.misc = parse_misc(misc_path.read_text())
 
     main_path = cv_dir / "cv-llt.tex"
     if main_path.exists():
-        data.personal = parse_personal_info(main_path.read_text())
+        main_text = main_path.read_text()
+        data.personal = parse_personal_info(main_text)
+        data.section_order = _parse_section_order(main_text, data)
+        data.prefix_marker = _parse_prefix_marker(main_text)
 
     # Detect referee mode
     referee_path = cv_dir / "referee.tex"
@@ -55,7 +70,47 @@ def parse_cv(cv_dir: Path) -> CVData:
     if referee_full_path.exists():
         data.referees = parse_referees(referee_full_path.read_text())
 
+    # Parse custom sections: any .tex in section_order that isn't a built-in section
+    _BUILTIN_SECTIONS = set(DEFAULT_SECTION_ORDER)
+    _BUILTIN_FILES = {"cv-llt", "referee-full", "settings", "own-bib"}
+    for key in data.section_order:
+        if key in _BUILTIN_SECTIONS or key in _BUILTIN_FILES:
+            continue
+        tex_path = cv_dir / f"{key}.tex"
+        if tex_path.exists():
+            section = parse_custom_section(key, tex_path.read_text())
+            if section:
+                data.custom_sections.append(section)
+
     return data
+
+
+def _parse_section_order(main_text: str, data: CVData) -> list[str]:
+    """Extract the \makerubric order from cv-llt.tex, preserving user-defined section order."""
+    order = []
+    seen = set()
+    for m in re.finditer(r"^(?!%)\s*\\makerubric\{([^}]+)\}", main_text, re.MULTILINE):
+        key = m.group(1).strip()
+        if key not in seen:
+            order.append(key)
+            seen.add(key)
+
+    # Ensure all default built-in sections are present (add missing ones at end)
+    for key in DEFAULT_SECTION_ORDER:
+        if key not in seen:
+            order.append(key)
+
+    return order
+
+
+def _parse_prefix_marker(main_text: str) -> str | None:
+    """Extract custom prefix marker from \\prefixmarker{...} if present.
+    Returns None if not found (default bookmark), or the marker string (possibly empty for no marker).
+    """
+    m = re.search(r"\\prefixmarker\{([^}]*)\}", main_text)
+    if m:
+        return m.group(1).strip()
+    return None
 
 
 def _parse_date_range(date_str: str) -> tuple[str, str]:
@@ -65,6 +120,14 @@ def _parse_date_range(date_str: str) -> tuple[str, str]:
     if len(parts) == 2:
         return parts[0].strip(), parts[1].strip()
     return date_str, ""
+
+
+def parse_about(text: str) -> str:
+    """Parse about.tex content, returning the plain text body."""
+    m = re.search(r"\\entry\*\[\\relax\]\s*([\s\S]*?)(?:\\end\{rubric\})", text)
+    if m:
+        return m.group(1).strip()
+    return ""
 
 
 def parse_employment(text: str) -> list[EmploymentEntry]:
@@ -121,7 +184,7 @@ def parse_education(text: str) -> list[EducationEntry]:
         if thesis_match:
             thesis_title = thesis_match.group(1)
 
-        # Parse \textbf{Degree, Institution,} possibly with specialization
+        # Parse \textbf{Degree, Institution} possibly with specialization
         title_match = re.match(r"\\textbf\{([^}]+)\}", content)
         degree = ""
         institution = ""
@@ -135,17 +198,24 @@ def parse_education(text: str) -> list[EducationEntry]:
             if len(bold_parts) > 1:
                 institution = ", ".join(bold_parts[1:])
 
-            # Check for specialization after the bold part
             after_bold = content[title_match.end():].strip()
-            # Remove \par and thesis line
-            after_bold = re.sub(r"\\par\s*Thesis title:.*", "", after_bold, flags=re.DOTALL)
-            after_bold = re.sub(r"\\par\s*$", "", after_bold).strip()
-            if after_bold:
-                spl_match = re.match(r"Spl\.?\s*in\s*(.*?)(?:\\par|$)", after_bold)
-                if spl_match:
-                    specialization = spl_match.group(1).strip().rstrip(".")
-                elif not after_bold.startswith("\\"):
-                    specialization = after_bold.strip().rstrip(".")
+
+            # New format: \par Specialization: \emph{...}
+            spl_emph_match = re.search(r"\\par\s*Specialization:\s*\\emph\{([^}]+)\}", after_bold)
+            if spl_emph_match:
+                specialization = spl_emph_match.group(1).strip()
+            else:
+                # Old format: Spl. in <text> (inline after bold)
+                # Remove \par and thesis line first
+                check_text = re.sub(r"\\par\s*Thesis title:.*", "", after_bold, flags=re.DOTALL)
+                check_text = re.sub(r"\\par\s*Specialization:.*", "", check_text, flags=re.DOTALL)
+                check_text = re.sub(r"\\par\s*$", "", check_text).strip()
+                if check_text:
+                    spl_match = re.match(r"Spl\.?\s*in\s*(.*?)(?:\\par|$)", check_text)
+                    if spl_match:
+                        specialization = spl_match.group(1).strip().rstrip(".")
+                    elif not check_text.startswith("\\"):
+                        specialization = check_text.strip().rstrip(".")
 
         entries.append(EducationEntry(
             start_year=start,
@@ -168,6 +238,62 @@ def parse_skills(text: str) -> list[SkillCategory]:
         # Preserve \hfill in label for round-trip fidelity
         items = match.group(2).strip()
         entries.append(SkillCategory(label=label, items=items))
+    return entries
+
+
+def parse_project_highlights(text: str) -> list[ProjectEntry]:
+    """Parse project_highlights.tex content."""
+    entries = []
+    pattern = r"\\entry\*\[([^\]]+)\]%?\s*\n?\t*(.*?)(?=\\entry\*|\s*\\end\{rubric\})"
+    for match in re.finditer(pattern, text, re.DOTALL):
+        date_str = match.group(1)
+        content = match.group(2).strip()
+        content = re.sub(r"^%.*$", "", content, flags=re.MULTILINE).strip()
+
+        start, end = _parse_date_range(date_str)
+
+        # Parse title and URL — supports both formats:
+        # New: \href{URL}{\textbf{Title}}
+        # Old: \textbf{Title} (\href{URL}{\texttt{url}})
+        title = ""
+        url = ""
+        href_bold_match = re.match(r"\\href\{([^}]+)\}\{\\textbf\{([^}]+)\}\}", content)
+        if href_bold_match:
+            url = href_bold_match.group(1).strip()
+            title = href_bold_match.group(2).strip()
+            rest = content[href_bold_match.end():]
+        else:
+            title_match = re.match(r"\\textbf\{([^}]+)\}", content)
+            if title_match:
+                title = title_match.group(1).strip()
+                rest = content[title_match.end():]
+            else:
+                rest = content
+            # Extract URL from old format
+            url_match = re.search(r"\\href\{([^}]+)\}", rest)
+            if url_match:
+                url = url_match.group(1).strip()
+
+        # Extract description from \par <text> (not starting with \textit or \smallskip)
+        description = ""
+        desc_match = re.search(r"\\par\s+(?!\\textit|\\smallskip)(.*?)(?=\\par|$)", rest, re.DOTALL)
+        if desc_match:
+            description = desc_match.group(1).strip()
+
+        # Extract technologies from \par[\smallskip] \textit{Technologies:} ...
+        technologies = ""
+        tech_match = re.search(r"\\textit\{Technologies:\}\s*(.*?)(?=\\par|$)", rest, re.DOTALL)
+        if tech_match:
+            technologies = tech_match.group(1).strip()
+
+        entries.append(ProjectEntry(
+            title=title,
+            start_year=start,
+            end_year=end,
+            description=description,
+            technologies=technologies,
+            url=url,
+        ))
     return entries
 
 
@@ -240,10 +366,15 @@ def parse_personal_info(text: str) -> PersonalInfo:
     if github_match:
         info.github = github_match.group(1).strip()
 
-    # Photo
+    # Photo — detect skip_photo if the fullonly block is absent or commented
     photo_match = re.search(r"\\photo\[r\]\{([^}]+)\}", text)
     if photo_match:
         info.photo = photo_match.group(1).strip()
+        # Check if the fullonly block containing the photo is present (not commented out)
+        fullonly_match = re.search(r"\\begin\{fullonly\}", text)
+        info.skip_photo = not bool(fullonly_match)
+    else:
+        info.skip_photo = True
 
     return info
 
@@ -293,3 +424,48 @@ def parse_referees(text: str) -> list[RefereeEntry]:
             email=email,
         ))
     return entries
+
+
+def parse_custom_section(filename: str, text: str) -> CustomSection | None:
+    """Parse a custom section .tex file into a CustomSection object.
+
+    Custom sections use the same format as the custom_section.tex.j2 template:
+      \\begin{rubric}{Title}
+      [\\subrubric{Sub}]
+      \\entry*[Label] Content
+      \\end{rubric}
+    """
+    # Extract section title from \begin{rubric}{...}
+    title_match = re.search(r"\\begin\{rubric\}\{([^}]+)\}", text)
+    if not title_match:
+        return None
+    title = title_match.group(1).strip()
+
+    entries: list[CustomEntry] = []
+    current_subrubric = ""
+
+    lines = text.split("\n")
+    subrubric_pattern = r"\\subrubric\{([^}]+)\}"
+    entry_pattern = r"\\entry\*\[([^\]]+)\]\s*(.*)"
+
+    for line in lines:
+        sub_match = re.search(subrubric_pattern, line)
+        if sub_match:
+            current_subrubric = sub_match.group(1).strip()
+            continue
+
+        entry_match = re.search(entry_pattern, line)
+        if entry_match:
+            label = entry_match.group(1).strip()
+            content = entry_match.group(2).strip()
+            entries.append(CustomEntry(
+                label=label,
+                content=content,
+                subrubric=current_subrubric,
+            ))
+
+    return CustomSection(
+        title=title,
+        filename=filename,
+        entries=entries,
+    )

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ EDUCATION ────────────────────────────────────────┐</pre>
+
+<form method="post">
+
+  <!-- Hidden template row -->
+  <div class="entry-row template" id="education-template">
+    <div class="entry-row-header">
+      <span class="entry-idx">#</span>
+      <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+      <div class="form-group">
+        <label>Start Year</label>
+        <input type="text" name="education[__IDX__][start_year]" placeholder="2016">
+      </div>
+      <div class="form-group">
+        <label>End Year</label>
+        <div class="input-with-btn">
+          <input type="text" name="education[__IDX__][end_year]" placeholder="2020">
+          <button type="button" class="present-btn" onclick="setPresent(this)" title="Set to present">∞</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+      <div class="form-group">
+        <label>Degree</label>
+        <input type="text" name="education[__IDX__][degree]" placeholder="PhD Computer Science">
+      </div>
+      <div class="form-group">
+        <label>Institution</label>
+        <input type="text" name="education[__IDX__][institution]" placeholder="University of Cambridge">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Specialization <span class="text-muted">(optional)</span></label>
+      <input type="text" name="education[__IDX__][specialization]" placeholder="Machine Learning">
+    </div>
+    <div class="form-group">
+      <label>Thesis Title <span class="text-muted">(optional)</span></label>
+      <input type="text" name="education[__IDX__][thesis_title]" placeholder="On the nature of...">
+    </div>
+  </div>
+
+  <div class="panel" data-title="Education Entries">
+    <div class="panel-body">
+      <div id="education-list" class="entry-list">
+        {% for entry in cv.education %}
+        <div class="entry-row">
+          <div class="entry-row-header">
+            <span class="entry-idx">#{{ loop.index }}</span>
+            <button type="button" class="btn btn-danger btn-sm remove-row-btn">✕ Remove</button>
+          </div>
+          <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+              <label>Start Year</label>
+              <input type="text" name="education[{{ loop.index0 }}][start_year]"
+                     value="{{ entry.start_year }}" placeholder="2016">
+            </div>
+            <div class="form-group">
+              <label>End Year</label>
+              <div class="input-with-btn">
+                <input type="text" name="education[{{ loop.index0 }}][end_year]"
+                       value="{{ entry.end_year }}" placeholder="2020">
+                <button type="button" class="present-btn" onclick="setPresent(this)" title="Set to present">∞</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+              <label>Degree</label>
+              <input type="text" name="education[{{ loop.index0 }}][degree]"
+                     value="{{ entry.degree }}" placeholder="PhD Computer Science">
+            </div>
+            <div class="form-group">
+              <label>Institution</label>
+              <input type="text" name="education[{{ loop.index0 }}][institution]"
+                     value="{{ entry.institution }}" placeholder="University of Cambridge">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Specialization <span class="text-muted">(optional)</span></label>
+            <input type="text" name="education[{{ loop.index0 }}][specialization]"
+                   value="{{ entry.specialization }}">
+          </div>
+          <div class="form-group">
+            <label>Thesis Title <span class="text-muted">(optional)</span></label>
+            <input type="text" name="education[{{ loop.index0 }}][thesis_title]"
+                   value="{{ entry.thesis_title }}">
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="add-row-btn">
+        <button type="button" class="btn btn-primary btn-sm" id="add-education">+ Add Entry</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wizard-nav">
+    <button type="submit" name="action" value="prev" class="btn">← Employment</button>
+    <div class="nav-right">
+      <button type="submit" name="action" value="save" class="btn btn-amber">Save</button>
+      <button type="submit" name="action" value="next" class="btn btn-success">Skills →</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">List your academic qualifications, most recent first.</p>
+<p class="info-tip">Thesis title will appear as <code>\emph{...}</code> in the CV.</p>
+<p class="info-text" style="margin-top:8px;">Specialization appears as "Spl. in ..." below the degree line.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const em = new EntryManager('education-list', 'education-template', 'education');
+  document.getElementById('add-education').addEventListener('click', () => em.addRow());
+</script>
+{% endblock %}

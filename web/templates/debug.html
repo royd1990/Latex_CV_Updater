@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">+-- DEBUG: Generated .tex Files ----------------+</pre>
+
+<div class="panel" data-title="Generated Files">
+  <div class="panel-body">
+    <p style="font-size:12px; margin-bottom:12px;">
+      These are the .tex files that would be compiled. Check for unbalanced braces, missing commands, or other LaTeX errors.
+    </p>
+    {% for filename, content in files.items() %}
+    <details {% if loop.first %}open{% endif %} style="margin-bottom:8px;">
+      <summary style="cursor:pointer; font-weight:bold; color:var(--cyan, #0ff);">{{ filename }} ({{ content.split('\n') | length }} lines)</summary>
+      <pre style="background:var(--bg-secondary, #111); padding:8px; margin:4px 0; overflow-x:auto; font-size:11px; line-height:1.4; white-space:pre-wrap; word-break:break-all;">{% for line in content.split('\n') %}<span style="color:var(--text-muted, #666); user-select:none;">{{ '%3d' | format(loop.index) }}| </span>{{ line }}
+{% endfor %}</pre>
+    </details>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="wizard-nav">
+  <a href="{{ url_for('download_page') }}" class="btn">< Back to Download</a>
+</div>
+{% endblock %}
