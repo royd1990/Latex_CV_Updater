@@ -81,6 +81,7 @@ def dict_to_cvdata(d: dict) -> CVData:
         custom_sections=custom_sections,
         section_order=section_order,
         prefix_marker=d.get("prefix_marker"),
+        template_style=d.get("template_style", "standard"),
     )
 
 

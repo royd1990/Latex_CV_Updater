@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<pre class="section-header">┌─ TEMPLATE STYLE ───────────────────────────────────┐</pre>
+
+<form method="post">
+  <div class="panel" data-title="Choose Template">
+    <div class="panel-body">
+      <div class="form-group">
+        <label>Template Style</label>
+
+        <div style="display:flex; flex-direction:column; gap:12px; margin:10px 0;">
+          <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:12px; border:1px solid var(--border); border-radius:4px;
+            {{ 'background:rgba(122,162,247,0.08); border-color:var(--blue);' if cv.template_style != 'compact' else '' }}">
+            <input type="radio" name="template_style" value="standard"
+                   {{ 'checked' if cv.template_style != 'compact' else '' }}
+                   style="accent-color:var(--blue); margin-top:2px;">
+            <div>
+              <div style="font-size:13px; color:var(--fg); font-weight:bold;">Standard</div>
+              <div style="font-size:11px; color:var(--muted); margin-top:2px;">
+                Generous spacing and margins. Professional multi-page layout with
+                large section headers and comfortable line height. Best when you have
+                extensive experience to present.
+              </div>
+            </div>
+          </label>
+
+          <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:12px; border:1px solid var(--border); border-radius:4px;
+            {{ 'background:rgba(122,162,247,0.08); border-color:var(--blue);' if cv.template_style == 'compact' else '' }}">
+            <input type="radio" name="template_style" value="compact"
+                   {{ 'checked' if cv.template_style == 'compact' else '' }}
+                   style="accent-color:var(--blue); margin-top:2px;">
+            <div>
+              <div style="font-size:13px; color:var(--fg); font-weight:bold;">Compact</div>
+              <div style="font-size:11px; color:var(--muted); margin-top:2px;">
+                Space-efficient layout targeting 1&ndash;2 pages. Tighter margins,
+                smaller section headers, reduced line spacing. Same professional look
+                with minimal wasted space. Ideal for concise, dense CVs.
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" data-title="What Changes">
+    <div class="panel-body" style="font-size:11px; color:var(--muted);">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="text-align:left; padding:4px 8px; color:var(--fg);">Parameter</th>
+            <th style="text-align:center; padding:4px 8px; color:var(--fg);">Standard</th>
+            <th style="text-align:center; padding:4px 8px; color:var(--fg);">Compact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:3px 8px;">Font size</td><td style="text-align:center;">11pt</td><td style="text-align:center;">10pt</td></tr>
+          <tr><td style="padding:3px 8px;">Horizontal margins</td><td style="text-align:center;">2.25 cm</td><td style="text-align:center;">1.2 cm</td></tr>
+          <tr><td style="padding:3px 8px;">Vertical margins</td><td style="text-align:center;">2.0 cm</td><td style="text-align:center;">0.8 cm</td></tr>
+          <tr><td style="padding:3px 8px;">Section headers</td><td style="text-align:center;">Large bold</td><td style="text-align:center;">Normal bold</td></tr>
+          <tr><td style="padding:3px 8px;">Row stretch</td><td style="text-align:center;">1.25</td><td style="text-align:center;">1.05</td></tr>
+          <tr><td style="padding:3px 8px;">Education format</td><td style="text-align:center;">Multi-line</td><td style="text-align:center;">Single-line</td></tr>
+          <tr><td style="padding:3px 8px;">Projects format</td><td style="text-align:center;">Multi-line</td><td style="text-align:center;">Inline</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="wizard-nav">
+    <button type="submit" name="action" value="prev" class="btn">&larr; Personal</button>
+    <div class="nav-right">
+      <button type="submit" name="action" value="save" class="btn btn-amber">Save</button>
+      <button type="submit" name="action" value="next" class="btn btn-success">About &rarr;</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block info %}
+<p class="info-text">Choose how your CV is laid out.</p>
+<p class="info-tip"><strong>Standard</strong> is the original template with generous whitespace &mdash; great for detailed, multi-page CVs.</p>
+<p class="info-tip"><strong>Compact</strong> reduces margins, font sizes, and spacing to fit more content into 1&ndash;2 pages without sacrificing readability.</p>
+<p class="info-text" style="margin-top:8px;">Both styles use the same <code>curve</code> document class and produce a professional PDF.</p>
+<p class="info-tip">You can switch styles at any time &mdash; your content is preserved.</p>
+{% endblock %}

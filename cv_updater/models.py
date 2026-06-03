@@ -120,3 +120,4 @@ class CVData:
     custom_sections: list[CustomSection] = field(default_factory=list)
     section_order: list[str] = field(default_factory=lambda: list(DEFAULT_SECTION_ORDER))
     prefix_marker: str | None = None  # None = default \faBookmark, "" = no marker, or custom string
+    template_style: str = "standard"  # "standard" or "compact"

@@ -1,0 +1,9 @@
+<% if entries %>\begin{rubric}{Education}
+<% for entry in entries -%>
+\entry*[<< entry.date_range >>]%
+	\textbf{<< entry.degree | escape_latex >>}, << entry.institution | escape_latex >><% if entry.specialization %> — \emph{<< entry.specialization | escape_latex >>}<% endif %><% if entry.thesis_title %> (Thesis: \emph{<< entry.thesis_title | escape_latex >>})<% endif %>
+%
+<% endfor -%>
+\end{rubric}
+<% else %>% No education entries
+<% endif %>

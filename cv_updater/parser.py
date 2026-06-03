@@ -56,6 +56,7 @@ def parse_cv(cv_dir: Path) -> CVData:
         data.personal = parse_personal_info(main_text)
         data.section_order = _parse_section_order(main_text, data)
         data.prefix_marker = _parse_prefix_marker(main_text)
+        data.template_style = _detect_template_style(main_text, cv_dir)
 
     # Detect referee mode
     referee_path = cv_dir / "referee.tex"
@@ -111,6 +112,32 @@ def _parse_prefix_marker(main_text: str) -> str | None:
     if m:
         return m.group(1).strip()
     return None
+
+
+def _detect_template_style(main_text: str, cv_dir: Path) -> str:
+    """Detect whether this CV uses the compact or standard template.
+
+    Detection heuristics (checked in order):
+    1. Main .tex uses 10pt font size → compact
+    2. settings.sty contains the compact marker comment → compact
+    3. settings.sty uses tight margins (hmargin <= 1.5cm) → compact
+    """
+    # Check font size in documentclass
+    if re.search(r"\\documentclass\[.*?10pt", main_text):
+        return "compact"
+
+    # Check settings.sty for compact markers
+    settings_path = cv_dir / "settings.sty"
+    if settings_path.exists():
+        settings_text = settings_path.read_text()
+        if "compact template" in settings_text.lower():
+            return "compact"
+        # Check for tight horizontal margins
+        margin_match = re.search(r"hmargin=([0-9.]+)cm", settings_text)
+        if margin_match and float(margin_match.group(1)) <= 1.5:
+            return "compact"
+
+    return "standard"
 
 
 def _parse_date_range(date_str: str) -> tuple[str, str]:

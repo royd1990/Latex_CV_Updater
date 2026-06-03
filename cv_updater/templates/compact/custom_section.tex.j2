@@ -1,0 +1,15 @@
+<% if entries %>\begin{rubric}{<< section_title >>}
+<% set current_sub = namespace(value='') -%>
+<% for entry in entries -%>
+<% if entry.subrubric != current_sub.value -%>
+<% set current_sub.value = entry.subrubric -%>
+<% if entry.subrubric %>
+\subrubric{<< entry.subrubric >>}
+<% endif -%>
+<% endif -%>
+\entry*[<< entry.label | escape_latex >>] << entry.content | escape_latex >>
+
+<% endfor %>
+\end{rubric}
+<% else %>% No entries for << section_title >>
+<% endif %>

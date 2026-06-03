@@ -93,6 +93,10 @@
         <span class="value">{{ cv.misc | length }}</span>
       </div>
       <div class="cv-summary-row">
+        <span class="label">Template style</span>
+        <span class="value">{{ cv.template_style or 'standard' }}</span>
+      </div>
+      <div class="cv-summary-row">
         <span class="label">Referee mode</span>
         <span class="value">{{ cv.referee_mode }}</span>
       </div>

@@ -1,0 +1,12 @@
+%!TEX encoding = UTF8
+%!TEX root =cv-llt.tex
+
+<% if entries %>\begin{rubric}{Expertise}
+\noentry{2014 -- 2015}
+<% for entry in entries -%>
+\entry*[<< entry.label | escape_latex >>]
+	<< entry.items | escape_latex >>
+<% endfor -%>
+\end{rubric}
+<% else %>% No skill entries
+<% endif %>

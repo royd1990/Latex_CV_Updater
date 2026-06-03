@@ -279,7 +279,7 @@ def main() -> None:
     _ok(f"Written  {main_file.name}")
 
     if mode == "Create new CV":
-        copied = copy_support_files(DEFAULT_CV_DIR, cv_dir)
+        copied = copy_support_files(DEFAULT_CV_DIR, cv_dir, data.template_style)
         for f in copied:
             _ok(f"Copied   {f}")
 
@@ -421,6 +421,25 @@ def _edit_personal_info(existing: PersonalInfo, current_prefix_marker: str = "")
 def _update_mode(cv_dir: Path) -> CVData | None:
     _info("Parsing existing CV files…")
     data = parse_cv(cv_dir)
+    console.print()
+
+    # Template style
+    _section_rule("Template Style")
+    current_style = data.template_style or "standard"
+    _info(f"Current template style: [accent]{current_style}[/accent]")
+    if _ask(questionary.confirm, "Change template style?", default=False):
+        style = _ask(
+            questionary.select,
+            "Template style:",
+            choices=[
+                "Standard (multi-page, generous spacing)",
+                "Compact (space-efficient, 1–2 pages)",
+            ],
+        )
+        if style and "Compact" in style:
+            data.template_style = "compact"
+        else:
+            data.template_style = "standard"
     console.print()
 
     # Personal info
@@ -941,6 +960,22 @@ def _manage_custom_sections(data: CVData) -> None:
 
 def _create_mode() -> CVData | None:
     data = CVData()
+
+    # Template style
+    _section_rule("Template Style")
+    style = _ask(
+        questionary.select,
+        "Choose a template style:",
+        choices=[
+            "Standard (multi-page, generous spacing)",
+            "Compact (space-efficient, 1–2 pages)",
+        ],
+    )
+    if style is None:
+        return None
+    data.template_style = "compact" if "Compact" in style else "standard"
+    _ok(f"Using {data.template_style} template.")
+    console.print()
 
     _section_rule("Personal Information")
     result = _collect_personal_info()

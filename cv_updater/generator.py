@@ -12,12 +12,21 @@ from jinja2 import Environment, FileSystemLoader
 from .models import CVData
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+COMPACT_TEMPLATES_DIR = TEMPLATES_DIR / "compact"
 
 
-def _get_env() -> Environment:
-    """Create Jinja2 environment with LaTeX-friendly settings."""
+def _get_env(template_style: str = "standard") -> Environment:
+    """Create Jinja2 environment with LaTeX-friendly settings.
+
+    When template_style is 'compact', the compact/ subdirectory is searched
+    first, falling back to the standard templates directory.
+    """
+    if template_style == "compact":
+        search_path = [str(COMPACT_TEMPLATES_DIR), str(TEMPLATES_DIR)]
+    else:
+        search_path = [str(TEMPLATES_DIR)]
     env = Environment(
-        loader=FileSystemLoader(str(TEMPLATES_DIR)),
+        loader=FileSystemLoader(search_path),
         block_start_string="<%",
         block_end_string="%>",
         variable_start_string="<<",
@@ -71,13 +80,25 @@ _ALL_SECTIONS = ["about", "employment", "education", "skills", "project_highligh
 _SUPPORT_FILES = ["settings.sty", "own-bib.bib"]
 
 
-def copy_support_files(source_dir: Path, dest_dir: Path) -> list[str]:
-    """Copy required LaTeX support files from source to dest if missing. Returns list of copied filenames."""
+def copy_support_files(source_dir: Path, dest_dir: Path, template_style: str = "standard") -> list[str]:
+    """Copy required LaTeX support files from source to dest if missing. Returns list of copied filenames.
+
+    When template_style is 'compact', the compact settings.sty is used instead of the standard one.
+    """
     copied = []
     for filename in _SUPPORT_FILES:
-        src = source_dir / filename
         dst = dest_dir / filename
-        if src.exists() and not dst.exists():
+        if dst.exists():
+            continue
+        # For settings.sty, prefer the compact version when appropriate
+        if filename == "settings.sty" and template_style == "compact":
+            compact_src = COMPACT_TEMPLATES_DIR / "settings.sty"
+            if compact_src.exists():
+                shutil.copy2(compact_src, dst)
+                copied.append(filename)
+                continue
+        src = source_dir / filename
+        if src.exists():
             shutil.copy2(src, dst)
             copied.append(filename)
     # Copy any image files (jpg, png) for photo
@@ -100,9 +121,16 @@ def copy_photo_file(photo_path: Path, dest_dir: Path) -> str:
     return photo_path.stem
 
 
+def _copy_compact_settings(output_dir: Path) -> None:
+    """Copy the compact settings.sty to the output directory, overwriting any existing one."""
+    src = COMPACT_TEMPLATES_DIR / "settings.sty"
+    if src.exists():
+        shutil.copy2(src, output_dir / "settings.sty")
+
+
 def generate_cv(data: CVData, output_dir: Path) -> list[Path]:
     """Generate all .tex files from CV data. Returns list of generated file paths."""
-    env = _get_env()
+    env = _get_env(data.template_style)
     generated = []
 
     files_to_generate = [
@@ -168,7 +196,11 @@ def _build_section_order(data: CVData) -> list[str]:
 
 def generate_main(data: CVData, output_dir: Path) -> Path:
     """Generate the main cv-llt.tex file."""
-    env = _get_env()
+    env = _get_env(data.template_style)
+
+    # When using compact template, ensure the compact settings.sty is in place
+    if data.template_style == "compact":
+        _copy_compact_settings(output_dir)
     output_path = output_dir / "cv-llt.tex"
     _backup(output_path)
     template = env.get_template("cv_main.tex.j2")

@@ -48,6 +48,7 @@
     } %}
     {% set step_urls = {
       'personal':           url_for('edit_personal'),
+      'style':              url_for('edit_style'),
       'about':              url_for('edit_about'),
       'employment':         url_for('edit_employment'),
       'education':          url_for('edit_education'),
@@ -101,6 +102,10 @@
       <div class="info-title">Session</div>
       {% set cv_data = session.get('cv', {}) %}
       <div class="cv-summary">
+        <div class="cv-summary-row">
+          <span class="label">Style</span>
+          <span class="value">{{ cv_data.get('template_style', 'standard') }}</span>
+        </div>
         <div class="cv-summary-row">
           <span class="label">Employment</span>
           <span class="value">{{ cv_data.get('employment', []) | length }}</span>

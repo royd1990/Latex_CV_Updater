@@ -71,6 +71,7 @@ except ImportError:
 
 WIZARD_STEPS = [
     "personal",
+    "style",
     "about",
     "employment",
     "education",
@@ -86,6 +87,7 @@ WIZARD_STEPS = [
 # Human-readable labels for wizard steps
 STEP_LABELS = {
     "personal": "Personal",
+    "style": "Style",
     "about": "About",
     "employment": "Employment",
     "education": "Education",
@@ -114,14 +116,14 @@ BUILTIN_SECTION_LABELS = {
 # ---------------------------------------------------------------------------
 
 
-def _copy_support_files(out_dir: Path) -> None:
+def _copy_support_files(out_dir: Path, template_style: str = "standard") -> None:
     """Copy settings.sty, own-bib.bib, and photo files into out_dir."""
     upload_dir = session.get("upload_dir")
     if upload_dir:
-        copy_support_files(Path(upload_dir), out_dir)
+        copy_support_files(Path(upload_dir), out_dir, template_style)
     for fallback in SUPPORT_FILE_FALLBACK_DIRS:
         if fallback.exists():
-            copy_support_files(fallback, out_dir)
+            copy_support_files(fallback, out_dir, template_style)
     # Copy uploaded photo if any
     photo_path = session.get("photo_path")
     if photo_path:
@@ -442,7 +444,7 @@ def edit_personal():
         save_cv(session, cv)
         _mark_visited("personal")
         if action == "next":
-            return redirect(url_for("edit_about"))
+            return redirect(url_for("edit_style"))
         return redirect(url_for("edit_personal"))
 
     _mark_visited("personal")
@@ -459,6 +461,40 @@ def edit_personal():
         current_step="personal",
         visited=session.get("visited", []),
         uploaded_photo=uploaded_photo,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Edit: template style
+# ---------------------------------------------------------------------------
+
+
+@app.route("/edit/style", methods=["GET", "POST"])
+def edit_style():
+    cv = _require_cv()
+    if cv is None:
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        action = request.form.get("action", "next")
+        cv.template_style = request.form.get("template_style", "standard")
+        save_cv(session, cv)
+        _mark_visited("style")
+        if action == "prev":
+            return redirect(url_for("edit_personal"))
+        if action == "next":
+            return redirect(url_for("edit_about"))
+        return redirect(url_for("edit_style"))
+
+    _mark_visited("style")
+    return render_template(
+        "style.html",
+        page_title="Template Style",
+        cv=cv,
+        wizard_steps=WIZARD_STEPS,
+        step_labels=STEP_LABELS,
+        current_step="style",
+        visited=session.get("visited", []),
     )
 
 
@@ -483,7 +519,7 @@ def edit_about():
         save_cv(session, cv)
         _mark_visited("about")
         if action == "prev":
-            return redirect(url_for("edit_personal"))
+            return redirect(url_for("edit_style"))
         if action == "next":
             return redirect(url_for("edit_employment"))
         return redirect(url_for("edit_about"))
@@ -1052,7 +1088,7 @@ def download_zip():
     try:
         generate_main(cv, out_dir)
         generate_cv(cv, out_dir)
-        _copy_support_files(out_dir)
+        _copy_support_files(out_dir, cv.template_style)
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -1094,7 +1130,7 @@ def download_pdf():
     try:
         main_tex = generate_main(cv, out_dir)
         generate_cv(cv, out_dir)
-        _copy_support_files(out_dir)
+        _copy_support_files(out_dir, cv.template_style)
 
         success, message = compile_cv(main_tex)
         if not success:
